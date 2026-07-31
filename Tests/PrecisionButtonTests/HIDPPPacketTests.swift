@@ -113,7 +113,10 @@ import CoreGraphics
     #expect(battery.percentage == 87)
     #expect(battery.level == .good)
     #expect(battery.state == .discharging)
-    #expect(battery.displayText == "87%（使用中）")
+    // displayText is localized, so assert the parts that carry the data.
+    #expect(battery.valueText == "87%")
+    #expect(battery.state == .discharging)
+    #expect(battery.displayText.contains("87%"))
 }
 
 @Test func parsesBatteryLevelStatus() throws {
@@ -131,4 +134,162 @@ import CoreGraphics
     let battery = try #require(HIDPPBatteryParser.voltage([0x0F, 0xA0, 0]))
     #expect(battery.voltageMillivolts == 4_000)
     #expect(battery.state == .discharging)
+}
+
+@Test func settingsBundleRoundTrip() throws {
+    let bundle = SettingsBundle(
+        mappings: [
+            .precision: ButtonMapping(shortPress: .missionControl, longPress: .none, longPressMode: .directions, directionalActions: [.up: .showDesktop]),
+            .middle: ButtonMapping(shortPress: .middleClick, longPress: .none),
+            .deviceSwitch: ButtonMapping(shortPress: .switchDevice, longPress: .none)
+        ],
+        longPressMilliseconds: 450,
+        excludedApps: [ExcludedApp(bundleIdentifier: "com.example.app", name: "Example")]
+    )
+    let data = try JSONEncoder().encode(bundle)
+    let decoded = try JSONDecoder().decode(SettingsBundle.self, from: data)
+    #expect(decoded.longPressMilliseconds == 450)
+    #expect(decoded.excludedApps == bundle.excludedApps)
+    #expect(decoded.mappings[.precision] == bundle.mappings[.precision])
+    #expect(decoded.mappings[.deviceSwitch]?.shortPress == .switchDevice)
+}
+
+@Test func settingsBundleClampsLongPressAndToleratesMissingFields() throws {
+    let json = #"{"mappings":{"left":{"shortPress":{"rightClick":{}},"longPress":{"none":{}}}},"longPressMilliseconds":99999}"#
+    let decoded = try JSONDecoder().decode(SettingsBundle.self, from: Data(json.utf8))
+    #expect(decoded.longPressMilliseconds == 1_500)
+    #expect(decoded.excludedApps.isEmpty)
+    #expect(decoded.mappings[.left]?.shortPress == .rightClick)
+}
+
+@Test func scrollSettingsMigratesLegacySensitivity() throws {
+    let json = #"{"sensitivity":1.8,"momentumEnabled":false}"#
+    let decoded = try JSONDecoder().decode(ScrollSettings.self, from: Data(json.utf8))
+    #expect(abs(decoded.speed - 8) < 0.001)
+    #expect(decoded.acceleration == 1)
+    #expect(decoded.momentumEnabled == false)
+}
+
+@Test func scrollDefaultsToUnityAndAccelerationBoostsFastMovementOnly() {
+    var settings = ScrollSettings()
+    #expect(settings.speed == 0)
+    #expect(settings.multiplier == 1.0)
+    #expect(settings.acceleration == 1)
+
+    // The top of the slider has to be dramatic, not merely noticeable.
+    settings.speed = ScrollSettings.speedRange.upperBound
+    #expect(settings.multiplier > 12)
+    settings.acceleration = 10
+    #expect(settings.gain(forDistance: 40) > 30)
+    // Back to defaults: no acceleration means plain 1x.
+    settings.speed = 0
+    settings.acceleration = 1
+    #expect(abs(settings.gain(forDistance: 40) - 1.0) < 0.001)
+
+    settings.acceleration = 10
+    let slow = settings.gain(forDistance: 2)
+    let fast = settings.gain(forDistance: 60)
+    #expect(slow < 1.0)
+    #expect(fast > 1.0)
+    #expect(fast > slow)
+}
+
+@Test func scrollSettingsClampOutOfRangeValues() throws {
+    let json = #"{"speed":9999,"acceleration":-5,"momentumFriction":2}"#
+    let decoded = try JSONDecoder().decode(ScrollSettings.self, from: Data(json.utf8))
+    #expect(decoded.speed == 128)
+    #expect(decoded.acceleration == 1)
+    #expect(decoded.momentumFriction == 0.999)
+}
+
+@Test func pointerDefaultsAreSystemNeutral() {
+    var settings = PointerSettings()
+    #expect(settings.acceleration == 3)
+    #expect(settings.speed == 0.069)
+    #expect(settings.speedMultiplier == 1.0)
+
+    settings.speed = 0.138
+    #expect(abs(settings.speedMultiplier - 2.0) < 0.001)
+
+    // A zero speed must not freeze the pointer beyond recovery.
+    settings.speed = 0
+    #expect(settings.speedMultiplier == 0.05)
+}
+
+@Test func pointerSettingsClampAndMapAcceleration() throws {
+    let decoded = try JSONDecoder().decode(
+        PointerSettings.self,
+        from: Data(#"{"acceleration":99,"speed":5}"#.utf8)
+    )
+    #expect(decoded.acceleration == 40)
+    #expect(decoded.speed == 1)
+    #expect(decoded.systemAcceleration == 40)
+}
+
+@Test func momentumGlidesLongerAsFrictionRises() {
+    var settings = ScrollSettings()
+    settings.momentumFriction = 0.94
+    let normal = settings.estimatedGlideSeconds
+    settings.momentumFriction = 0.999
+    let exaggerated = settings.estimatedGlideSeconds
+    #expect(normal > 0)
+    #expect(exaggerated > normal * 10)
+
+    settings.momentumBoost = 8
+    #expect(settings.estimatedGlideSeconds > exaggerated)
+}
+
+@Test func momentumSettingsClampToRanges() throws {
+    let decoded = try JSONDecoder().decode(
+        ScrollSettings.self,
+        from: Data(#"{"momentumFriction":5,"momentumBoost":99}"#.utf8)
+    )
+    #expect(decoded.momentumFriction == 0.999)
+    #expect(decoded.momentumBoost == 8)
+}
+
+@Test func tiltButtonsStayNativeUntilCustomized() {
+    #expect(ButtonSource.tiltLeft.divertsOnlyWhenCustomized)
+    #expect(ButtonSource.tiltRight.divertsOnlyWhenCustomized)
+    #expect(ButtonSource.tiltLeft.nativeAction == ButtonAction.none)
+    // Ordinary buttons are taken over as soon as customization is enabled.
+    #expect(!ButtonSource.middle.divertsOnlyWhenCustomized)
+}
+
+@Test func horizontalScrollActionsHaveDistinctIdentities() {
+    #expect(ButtonAction.scrollLeft.id == "scrollLeft")
+    #expect(ButtonAction.scrollRight.id == "scrollRight")
+    #expect(ButtonAction.allCases.contains(.scrollLeft))
+    #expect(ButtonAction.allCases.contains(.scrollRight))
+}
+
+@Test func localizedFormatSubstitutesEveryArgumentType() {
+    // %@ must be safe for non-object arguments too (UInt8, Int, enums).
+    // Assertions stay language-neutral: the test host may run in any locale.
+    let press = L("%@: 押下を検出", "中クリック")
+    #expect(press.contains("中クリック"))
+    #expect(!press.contains("%@"))
+
+    let slot = L("HID++スロット%@: ボタン機能を検出", UInt8(255))
+    #expect(slot.contains("255"))
+    #expect(!slot.contains("%@"))
+
+    let channel = L("デバイス切り替え: チャンネル%@へ", 2)
+    #expect(channel.contains("2"))
+    #expect(!channel.contains("%@"))
+
+    // A missing argument leaves the placeholder rather than crashing.
+    let partial = L("%@を検出（CID 0x%@）", "左クリック")
+    #expect(partial.contains("左クリック"))
+    #expect(partial.contains("%@"))
+}
+
+@Test func englishTableCoversEveryLocalizedKey() throws {
+    // A key without a translation would silently ship Japanese text.
+    let url = try #require(Bundle.module.url(forResource: "en", withExtension: "lproj"))
+    let table = try #require(
+        NSDictionary(contentsOf: url.appending(path: "Localizable.strings")) as? [String: String]
+    )
+    #expect(table["ボタン割り当て"] == "Buttons")
+    #expect(table.count > 150)
 }

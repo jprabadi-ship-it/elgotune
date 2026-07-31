@@ -1,0 +1,214 @@
+/* ErgoTune — English. Keys are the Japanese source strings. */
+
+/* Tabs and window chrome */
+"ボタン割り当て" = "Buttons";
+"ポインタ" = "Pointer";
+"スクロール" = "Scrolling";
+"除外アプリ" = "Excluded Apps";
+"バックアップ" = "Backup";
+"一般" = "General";
+"診断ログ" = "Diagnostics";
+"MX ERGO / ERGO M575 のボタンを、好きな操作に変えます。" = "Remap the buttons on MX ERGO and ERGO M575 to whatever you like.";
+"有効" = "Enabled";
+"無効" = "Disabled";
+"再スキャン" = "Rescan";
+"権限を許可…" = "Grant Permissions…";
+"標準に戻す" = "Reset to Default";
+"終了" = "Quit";
+"設定画面を開く" = "Open Settings";
+"カスタマイズを停止" = "Pause Customization";
+"カスタマイズを開始" = "Resume Customization";
+
+/* Permissions and status */
+"アクセシビリティ" = "Accessibility";
+"操作送信" = "Event Posting";
+"入力監視" = "Input Monitoring";
+"Logitechデバイスを待機中…" = "Waiting for a Logitech device…";
+"精密モードボタンを検出" = "precision button detected";
+"%@個のボタンを検出" = "%@ buttons detected";
+"%@台を検出: " = "%@ devices: ";
+"バッテリー: %@" = "Battery: %@";
+"バッテリーを取得中…" = "Reading battery…";
+"取得中" = "reading";
+"取得中…" = "reading…";
+"ErgoTune、バッテリー %@" = "ErgoTune, battery %@";
+
+/* Battery states */
+"使用中" = "in use";
+"充電中" = "charging";
+"充電完了" = "charged";
+"充電エラー" = "charging error";
+"状態不明" = "unknown state";
+"危険" = "critical";
+"少ない" = "low";
+"良好" = "good";
+"満充電" = "full";
+"不明" = "unknown";
+
+/* Button sources */
+"精密モード" = "Precision";
+"左クリック" = "Left Click";
+"右クリック" = "Right Click";
+"中クリック" = "Middle Click";
+"戻る" = "Back";
+"進む" = "Forward";
+"左チルト" = "Tilt Left";
+"右チルト" = "Tilt Right";
+"デバイス切替" = "Device Switch";
+"対象ボタン" = "Button";
+
+/* Actions */
+"なし" = "None";
+"アプリケーションウインドウ" = "Application Windows";
+"デスクトップを表示" = "Show Desktop";
+"中央クリック" = "Middle Click";
+"Enterキー" = "Return Key";
+"左へスクロール" = "Scroll Left";
+"右へスクロール" = "Scroll Right";
+"デバイス切り替え" = "Switch Device";
+"キーボードショートカット" = "Keyboard Shortcut";
+"キーボードショートカット（%@）" = "Keyboard Shortcut (%@)";
+"割り当て" = "Action";
+"ショートカット" = "Shortcut";
+"キーを入力…" = "Press keys…";
+"欄をクリックしてキーを押してください" = "Click the field and press the keys";
+
+/* Button assignment */
+"短押し" = "Short press";
+"押しっぱなし" = "Press and hold";
+"押しっぱなし開始" = "Hold delay";
+"モード" = "Mode";
+"操作" = "Action";
+"方向" = "Directions";
+"上下左右" = "Up / Down / Left / Right";
+"開始時に実行する操作" = "Action on hold";
+"%@の操作" = "%@ action";
+"上 ↑" = "Up ↑";
+"下 ↓" = "Down ↓";
+"左 ←" = "Left ←";
+"右 →" = "Right →";
+"押しっぱなし + %@" = "hold + %@";
+"%@：押しっぱなし中" = "%@: holding";
+"押している間、トラックボール移動を縦横スクロールに変換します。" = "While held, trackball movement becomes vertical and horizontal scrolling.";
+"カスタマイズ中は、そのボタンの通常ドラッグがトラックボール操作へ置き換わります。" = "While customized, normal dragging with that button is replaced by trackball control.";
+"「なし」のままならホイールチルト本来の横スクロールが働きます。割り当てると横スクロールは無効になります。" = "Left at “None”, the wheel tilt keeps its native horizontal scrolling. Assigning an action disables it.";
+"「なし」のままなら本来のデバイス切り替えが働きます。割り当てを変えた場合でも、割り当て一覧の「デバイス切り替え」で元の切り替え動作を呼び出せます。" = "Left at “None”, Easy-Switch keeps working. Even after assigning something else, you can still trigger the original behavior with the “Switch Device” action.";
+
+/* Pointer tab */
+"ポインタの加速" = "Pointer acceleration";
+"ポインタの速度" = "Pointer speed";
+"システムデフォルトに戻す" = "Restore System Defaults";
+"トラックボールでカーソルを動かすときの感触です。システム全体のポインタ加速（システム設定の「軌跡の速さ」と同じ値）を変更します。" = "How the cursor feels when you roll the ball. This changes the system pointer acceleration — the same value as “Tracking speed” in System Settings.";
+"macOSの標準は 3 です。0 で加速なし＝等速になります。" = "macOS defaults to 3. Set 0 for linear tracking with no acceleration.";
+"標準は 0.069（400 DPI 相当）です。値を上げるほど速く、下げるほど遅くなります。" = "The default is 0.069 (equivalent to 400 DPI). Higher is faster, lower is slower.";
+"デバイスの現在値: %.0f DPI / 加速 %.2f" = "Device reports: %.0f DPI / acceleration %.2f";
+"デバイスの現在値を取得できません" = "Cannot read the device values";
+"ポインタ設定の対象デバイスが見つかりません" = "No pointing device found for these settings";
+"ポインタ設定を適用できません（この macOS では非対応）" = "Cannot apply pointer settings (unsupported on this macOS)";
+"ポインタ設定をシステムデフォルトに戻しました" = "Pointer settings restored to system defaults";
+
+/* Scroll tab */
+"スクロールの加速" = "Scroll acceleration";
+"スクロールの速さ" = "Scroll speed";
+"慣性スクロール" = "Momentum scrolling";
+"滑りやすさ" = "Glide";
+"離したときの勢い" = "Release boost";
+"縦スクロールを反転" = "Invert vertical scrolling";
+"横スクロールを反転" = "Invert horizontal scrolling";
+"ホイールを回したときのスクロール量に適用されます。ボタンの押しっぱなし「スクロール」モードにも同じ設定が使われます。" = "Applies to how far the wheel scrolls. The same settings are used by the press-and-hold scroll mode.";
+"ホイールを止めたあとも、勢いに応じてスクロールが滑らかに減速しながら続きます。次にホイールを回すか、ボタンを押すと即座に止まります。" = "After the wheel stops, scrolling keeps gliding and decelerating. Turning the wheel or pressing a button stops it instantly.";
+"標準は 1 で等速です。値を上げるほど、速く動かしたときに大きくスクロールします（最大10で、速い動きは最大12倍まで上乗せ）。" = "The default is 1, which is linear. Higher values scroll farther on fast movement (up to 10, adding as much as 12× for quick flicks).";
+"標準は 0 で、0 が等倍です。最大 128 で約13倍まで上がります。" = "The default is 0, which is 1×. The maximum of 128 reaches about 13×.";
+"0.999 まで上げると、はっきり分かるほど長く滑ります。目安の滑走時間: 約 %.1f 秒" = "Raise it to 0.999 for an unmistakably long glide. Estimated glide: about %.1f seconds";
+"ホイール: 慣性スクロール開始" = "Wheel: momentum scrolling started";
+
+/* Excluded apps */
+"ここに登録したアプリが最前面のとき、ボタンのカスタマイズは無効になり標準動作に戻ります。" = "While one of these apps is frontmost, customization is disabled and the buttons behave normally.";
+"除外アプリは登録されていません。" = "No apps are excluded.";
+"実行中のAppから追加…" = "Add from Running Apps…";
+"Appを選択…" = "Choose App…";
+"追加できるAppがありません" = "No apps available to add";
+"現在のAppは除外中" = "Current app is excluded";
+"除外アプリがアクティブなためボタンを標準動作に戻します" = "An excluded app is active — buttons reverted to their default behavior";
+"除外アプリから復帰、カスタマイズを再開します" = "Left the excluded app — customization resumed";
+
+/* Backup */
+"エクスポート…" = "Export…";
+"インポート…" = "Import…";
+"ボタン割り当て・押しっぱなし判定・スクロール設定・除外アプリをJSONファイルで保存／復元します。" = "Save and restore button assignments, hold delay, scroll settings and excluded apps as a JSON file.";
+"設定を書き出しました: %@" = "Settings exported: %@";
+"設定の書き出しに失敗: %@" = "Export failed: %@";
+"設定を読み込みました: %@" = "Settings imported: %@";
+"設定の読み込みに失敗: %@" = "Import failed: %@";
+
+/* General tab */
+"ログイン時に起動" = "Launch at login";
+"状態: %@" = "Status: %@";
+"初回は システム設定 > 一般 > ログイン項目 での承認が必要な場合があります。" = "The first time, you may need to approve it in System Settings > General > Login Items.";
+"バージョン %@ (%@)" = "Version %@ (%@)";
+"対応デバイス: MX ERGO / ERGO M575（M575S・M575SP を含む）" = "Supported devices: MX ERGO and ERGO M575 (including M575S and M575SP)";
+"システム設定 > 一般 > ログイン項目 で ErgoTune を許可してください" = "Allow ErgoTune in System Settings > General > Login Items";
+"システム設定での承認待ち" = "Waiting for approval in System Settings";
+"登録できません（/Applications に配置してください）" = "Cannot register (move the app to /Applications)";
+"ログイン時起動を変更できません: %@" = "Cannot change launch at login: %@";
+"ログイン時起動を有効化" = "Launch at login enabled";
+"ログイン時起動を無効化" = "Launch at login disabled";
+
+/* Diagnostics */
+"接続イベントを待機しています…" = "Waiting for connection events…";
+"Logitech HIDの監視を開始" = "Started monitoring Logitech HID";
+"HID監視を開始できません (0x%@)" = "Cannot start HID monitoring (0x%@)";
+"HID++デバイスを再スキャン" = "Rescanning HID++ devices";
+"HID++送信エラー: 0x%@" = "HID++ send error: 0x%@";
+"左右クリックの監視を開始" = "Started watching left and right clicks";
+"左右クリックの監視にはアクセシビリティ権限が必要です" = "Watching left and right clicks requires Accessibility permission";
+"キーボード・マウス操作の送信権限を確認" = "Confirmed permission to post keyboard and mouse events";
+"操作送信権限がありません" = "No permission to post events";
+"操作を送信できません: アクセシビリティの許可を確認してください" = "Cannot post the action — check the Accessibility permission";
+"キーイベント生成失敗 (code=%@)" = "Failed to create key event (code=%@)";
+"キー送信: code=%u flags=0x%llx tap=HID" = "Key sent: code=%u flags=0x%llx tap=HID";
+"ボタンのカスタマイズを有効化" = "Button customization enabled";
+"ボタンを標準動作に復帰" = "Buttons reverted to default behavior";
+"%@（%@）を検出" = "Found %@ (%@)";
+"%@が切断されました" = "%@ disconnected";
+"%@を認識（スロット%@）" = "Recognized %@ (slot %@)";
+"「%@」は非対応のため操作しません" = "“%@” is not supported — leaving it untouched";
+"入力監視の許可を確認してください（アプリ更新後は登録し直しが必要です）" = "Check the Input Monitoring permission (re-add the app after updating it)";
+"他のアプリが占有している可能性があります" = "Another app may be holding the device";
+"%@を開けません（0x%@）。%@" = "Cannot open %@ (0x%@). %@";
+"HID++スロット%@: ボタン機能を検出" = "HID++ slot %@: button feature found";
+"HID++スロット%@: バッテリー機能 0x%@ を検出" = "HID++ slot %@: battery feature 0x%@ found";
+"HID++スロット%@: バッテリー情報は非対応" = "HID++ slot %@: battery reporting not supported";
+"HID++スロット%@: デバイス切り替え対応（%@/%@）" = "HID++ slot %@: device switching supported (%@/%@)";
+"HID++スロット%@: デバイス切り替えは非対応" = "HID++ slot %@: device switching not supported";
+"%@を検出（CID 0x%@）" = "Found %@ (CID 0x%@)";
+"未対応のボタン（CID 0x%@%@）" = "Unsupported button (CID 0x%@%@)";
+" / 転送不可" = " / cannot divert";
+"%@をアプリへ転送" = "Diverting %@ to this app";
+"%@の転送を解除" = "Stopped diverting %@";
+"デバイス切り替え: チャンネル%@へ" = "Device switch: to channel %@";
+"デバイス切り替えに対応したデバイスが見つかりません" = "No device found that supports switching";
+"このデバイスはソフトからの切り替えに対応していません" = "This device cannot be switched from software";
+"%@: 押下を検出" = "%@: press detected";
+"%@: 解放を検出" = "%@: release detected";
+"%@: 押しっぱなし終了" = "%@: hold ended";
+"%@: スクロールモード開始" = "%@: scroll mode started";
+"%@: 慣性スクロール開始" = "%@: momentum scrolling started";
+"%@: 方向ジェスチャー開始（カーソル固定）" = "%@: direction gesture started (cursor pinned)";
+"%@: 方向移動が小さいためキャンセル" = "%@: movement too small — cancelled";
+"%@: 次の方向操作を待機" = "%@: ready for the next direction";
+
+/* Onboarding */
+"ErgoTune を使う準備" = "Set up ErgoTune";
+"トラックボールを制御するために、3つの許可が必要です。下のボタンからシステム設定を開き、リストの ErgoTune をオンにしてください。" = "Three permissions are needed to control your trackball. Open System Settings with the buttons below and turn ErgoTune on in each list.";
+"左右クリックの監視と、押しっぱなしジェスチャーに必要です。" = "Needed to watch left and right clicks and to run press-and-hold gestures.";
+"割り当てたキー操作やクリックを送信するために必要です。" = "Needed to send the keystrokes and clicks you assign.";
+"トラックボール本体と通信し、ボタンを受け取るために必要です。" = "Needed to talk to the trackball itself and receive its buttons.";
+"許可済み" = "Granted";
+"開く" = "Open";
+"アプリを更新すると許可が外れることがあります。そのときは一覧から ErgoTune を削除して、追加し直してください。" = "Updating the app can drop these approvals. If that happens, remove ErgoTune from the list and add it again.";
+"まとめて許可を求める" = "Request All";
+"はじめる" = "Get Started";
+"あとで" = "Later";
+"権限の設定ガイドを開く…" = "Open Permission Guide…";
+"終了時にデバイスを標準状態へ戻しました" = "Restored the device to its default state on quit";

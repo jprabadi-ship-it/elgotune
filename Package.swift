@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "PrecisionButton",
+    defaultLocalization: "en",
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "PrecisionButton", targets: ["PrecisionButton"])
@@ -10,6 +11,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "PrecisionButton",
+            resources: [.process("Resources")],
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("CoreGraphics"),

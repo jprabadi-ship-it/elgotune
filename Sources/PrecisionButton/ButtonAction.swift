@@ -5,19 +5,33 @@ enum ButtonSource: String, Codable, CaseIterable, Hashable, Identifiable {
     case precision
     case left
     case right
+    case middle
     case back
     case forward
+    case tiltLeft
+    case tiltRight
+    case deviceSwitch
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .precision: "精密モード"
-        case .left: "左クリック"
-        case .right: "右クリック"
-        case .back: "戻る"
-        case .forward: "進む"
+        case .precision: L("精密モード")
+        case .left: L("左クリック")
+        case .right: L("右クリック")
+        case .middle: L("中クリック")
+        case .back: L("戻る")
+        case .forward: L("進む")
+        case .tiltLeft: L("左チルト")
+        case .tiltRight: L("右チルト")
+        case .deviceSwitch: L("デバイス切替")
         }
+    }
+
+    /// These do something useful on their own — Easy-Switch changes host, the
+    /// wheel tilts scroll sideways — so they stay native until mapped.
+    var divertsOnlyWhenCustomized: Bool {
+        self == .deviceSwitch || self == .tiltLeft || self == .tiltRight
     }
 
     var nativeAction: ButtonAction {
@@ -25,8 +39,11 @@ enum ButtonSource: String, Codable, CaseIterable, Hashable, Identifiable {
         case .precision: .missionControl
         case .left: .leftClick
         case .right: .rightClick
+        case .middle: .middleClick
         case .back: .backClick
         case .forward: .forwardClick
+        case .tiltLeft, .tiltRight: .none
+        case .deviceSwitch: .none
         }
     }
 }
@@ -49,10 +66,10 @@ enum GestureDirection: String, Codable, CaseIterable, Hashable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .up: "上 ↑"
-        case .down: "下 ↓"
-        case .left: "左 ←"
-        case .right: "右 →"
+        case .up: L("上 ↑")
+        case .down: L("下 ↓")
+        case .left: L("左 ←")
+        case .right: L("右 →")
         }
     }
 
@@ -144,10 +161,13 @@ enum ButtonAction: Codable, Equatable, Identifiable, CaseIterable {
     case rightClick
     case backClick
     case forwardClick
+    case switchDevice
+    case scrollLeft
+    case scrollRight
     case shortcut(KeyboardShortcut)
 
     static var allCases: [ButtonAction] {
-        [.none, .missionControl, .appExpose, .showDesktop, .leftClick, .rightClick, .middleClick, .backClick, .forwardClick, .returnKey, .commandBackspace, .shortcut(.init(keyCode: 35, modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue, characters: "P"))]
+        [.none, .missionControl, .appExpose, .showDesktop, .leftClick, .rightClick, .middleClick, .backClick, .forwardClick, .scrollLeft, .scrollRight, .switchDevice, .returnKey, .commandBackspace, .shortcut(.init(keyCode: 35, modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue, characters: "P"))]
     }
 
     var id: String {
@@ -163,24 +183,30 @@ enum ButtonAction: Codable, Equatable, Identifiable, CaseIterable {
         case .rightClick: "rightClick"
         case .backClick: "backClick"
         case .forwardClick: "forwardClick"
+        case .switchDevice: "switchDevice"
+        case .scrollLeft: "scrollLeft"
+        case .scrollRight: "scrollRight"
         case .shortcut: "shortcut"
         }
     }
 
     var displayName: String {
         switch self {
-        case .none: "なし"
+        case .none: L("なし")
         case .missionControl: "Mission Control"
-        case .appExpose: "アプリケーションウインドウ"
-        case .showDesktop: "デスクトップを表示"
-        case .middleClick: "中央クリック"
-        case .returnKey: "Enterキー"
+        case .appExpose: L("アプリケーションウインドウ")
+        case .showDesktop: L("デスクトップを表示")
+        case .middleClick: L("中央クリック")
+        case .returnKey: L("Enterキー")
         case .commandBackspace: "Command + Backspace（⌘⌫）"
-        case .leftClick: "左クリック"
-        case .rightClick: "右クリック"
-        case .backClick: "戻る"
-        case .forwardClick: "進む"
-        case .shortcut(let value): "キーボードショートカット（\(value.displayName)）"
+        case .leftClick: L("左クリック")
+        case .rightClick: L("右クリック")
+        case .backClick: L("戻る")
+        case .forwardClick: L("進む")
+        case .switchDevice: L("デバイス切り替え")
+        case .scrollLeft: L("左へスクロール")
+        case .scrollRight: L("右へスクロール")
+        case .shortcut(let value): L("キーボードショートカット（%@）", value.displayName)
         }
     }
 }
@@ -255,6 +281,15 @@ enum ActionPerformer {
         case .forwardClick:
             mouseClick(button: CGMouseButton(rawValue: 4)!, down: .otherMouseDown, up: .otherMouseUp)
             return nil
+        case .switchDevice:
+            // Handled by AppModel through HID++; nothing to synthesize here.
+            return nil
+        case .scrollLeft:
+            scroll(deltaX: horizontalScrollStep, deltaY: 0)
+            return nil
+        case .scrollRight:
+            scroll(deltaX: -horizontalScrollStep, deltaY: 0)
+            return nil
         case .shortcut(let shortcut):
             return keyPress(keyCode: CGKeyCode(shortcut.keyCode), flags: cgFlags(from: shortcut.modifiers))
         }
@@ -270,10 +305,21 @@ enum ActionPerformer {
         upEvent.post(tap: .cghidEventTap)
     }
 
-    static func scroll(deltaX: Double, deltaY: Double) {
-        let scale = 1.8
-        let vertical = clampedInt32(-deltaY * scale)
-        let horizontal = clampedInt32(-deltaX * scale)
+    /// One tilt press moves about as far as a wheel notch sideways.
+    private static let horizontalScrollStep: Double = 24
+
+    static func scroll(deltaX: Double, deltaY: Double, settings: ScrollSettings = ScrollSettings()) {
+        let scale = settings.gain(forDistance: hypot(deltaX, deltaY))
+        postScroll(
+            deltaX: (settings.invertHorizontal ? deltaX : -deltaX) * scale,
+            deltaY: (settings.invertVertical ? deltaY : -deltaY) * scale
+        )
+    }
+
+    /// Posts a scroll exactly as given, for values that were already scaled.
+    static func postScroll(deltaX: Double, deltaY: Double) {
+        let vertical = clampedInt32(deltaY)
+        let horizontal = clampedInt32(deltaX)
         guard vertical != 0 || horizontal != 0,
               let event = CGEvent(
                 scrollWheelEvent2Source: nil,
@@ -297,7 +343,7 @@ enum ActionPerformer {
         guard let source = CGEventSource(stateID: .hidSystemState),
               let down = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
               let up = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false) else {
-            return "キーイベント生成失敗 (code=\(keyCode))"
+            return L("キーイベント生成失敗 (code=%@)", keyCode)
         }
 
         source.localEventsSuppressionInterval = 0
@@ -334,7 +380,7 @@ enum ActionPerformer {
             modifierUp.post(tap: .cghidEventTap)
         }
 
-        return String(format: "キー送信: code=%u flags=0x%llx tap=HID", keyCode, effectiveFlags.rawValue)
+        return String(format: L("キー送信: code=%u flags=0x%llx tap=HID"), keyCode, effectiveFlags.rawValue)
     }
 
     static func keyboardFlags(for keyCode: CGKeyCode, modifiers: CGEventFlags) -> CGEventFlags {

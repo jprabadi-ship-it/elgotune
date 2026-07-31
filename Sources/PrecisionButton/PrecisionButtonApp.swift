@@ -5,7 +5,7 @@ struct PrecisionButtonApp: App {
     @StateObject private var model = AppModel()
 
     var body: some Scene {
-        Window("Precision Button", id: "settings") {
+        Window("ErgoTune", id: "settings") {
             ContentView()
                 .environmentObject(model)
                 .frame(minWidth: 700, minHeight: 800)
@@ -26,7 +26,7 @@ private struct MenuBarContent: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button("設定画面を開く") {
+        Button(L("設定画面を開く")) {
             NSApplication.shared.activate(ignoringOtherApps: true)
             openWindow(id: "settings")
         }
@@ -35,19 +35,19 @@ private struct MenuBarContent: View {
         Divider()
 
         if let battery = model.primaryBattery {
-            Label("バッテリー: \(battery.displayText)", systemImage: battery.systemImage)
+            Label(L("バッテリー: %@", battery.displayText), systemImage: battery.systemImage)
         } else {
-            Label("バッテリーを取得中…", systemImage: "battery.0percent")
+            Label(L("バッテリーを取得中…"), systemImage: "battery.0percent")
         }
 
         Text(model.statusText)
         Divider()
 
-        Button(model.isEnabled ? "カスタマイズを停止" : "カスタマイズを開始") {
+        Button(model.isEnabled ? L("カスタマイズを停止") : L("カスタマイズを開始")) {
             model.isEnabled.toggle()
         }
         Divider()
-        Button("終了") { NSApplication.shared.terminate(nil) }
+        Button(L("終了")) { NSApplication.shared.terminate(nil) }
     }
 }
 
@@ -78,6 +78,6 @@ private struct MenuBarBatteryLabel: View {
                 .foregroundStyle(.background)
         }
         .frame(width: 22, height: 18)
-        .accessibilityLabel("Precision Button、バッテリー \(battery?.displayText ?? "取得中")")
+        .accessibilityLabel(L("ErgoTune、バッテリー %@", battery?.displayText ?? L("取得中")))
     }
 }

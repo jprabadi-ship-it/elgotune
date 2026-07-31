@@ -4,6 +4,8 @@ import Foundation
 final class MouseButtonMonitor: @unchecked Sendable {
     var onButton: ((ButtonSource, Bool) -> Void)?
     var onMotion: ((ButtonSource, Double, Double) -> Void)?
+    /// Scaled wheel movement, so momentum can be built from what apps saw.
+    var onWheel: ((Double, Double) -> Void)?
     var onLog: ((String) -> Void)?
 
     private var eventTap: CFMachPort?
@@ -11,6 +13,13 @@ final class MouseButtonMonitor: @unchecked Sendable {
     private let lock = NSLock()
     private var capturedSources: Set<ButtonSource> = []
     private var activeSources: Set<ButtonSource> = []
+    private var scrollSettings = ScrollSettings()
+
+    func setScrollSettings(_ settings: ScrollSettings) {
+        lock.lock()
+        scrollSettings = settings
+        lock.unlock()
+    }
 
     func start() {
         if let eventTap {
@@ -20,7 +29,9 @@ final class MouseButtonMonitor: @unchecked Sendable {
 
         let types: [CGEventType] = [
             .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp,
-            .mouseMoved, .leftMouseDragged, .rightMouseDragged
+            .otherMouseDown, .otherMouseUp,
+            .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged,
+            .scrollWheel
         ]
         let mask = types.reduce(CGEventMask(0)) { $0 | (CGEventMask(1) << $1.rawValue) }
         let context = Unmanaged.passUnretained(self).toOpaque()
@@ -32,7 +43,7 @@ final class MouseButtonMonitor: @unchecked Sendable {
             callback: mouseEventCallback,
             userInfo: context
         ) else {
-            onLog?("左右クリックの監視にはアクセシビリティ権限が必要です")
+            onLog?(L("左右クリックの監視にはアクセシビリティ権限が必要です"))
             return
         }
 
@@ -41,7 +52,15 @@ final class MouseButtonMonitor: @unchecked Sendable {
         runLoopSource = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
-        onLog?("左右クリックの監視を開始")
+        onLog?(L("左右クリックの監視を開始"))
+    }
+
+    /// Buttons diverted over HID++ never reach this tap, so their press state
+    /// has to be pushed in for trackball motion to be routed to them.
+    func setExternallyHeld(_ source: ButtonSource, held: Bool) {
+        lock.lock()
+        if held { activeSources.insert(source) } else { activeSources.remove(source) }
+        lock.unlock()
     }
 
     func setCapturedSources(_ sources: Set<ButtonSource>) {
@@ -62,7 +81,14 @@ final class MouseButtonMonitor: @unchecked Sendable {
             return Unmanaged.passUnretained(event)
         }
 
-        if type == .mouseMoved || type == .leftMouseDragged || type == .rightMouseDragged {
+        if type == .scrollWheel {
+            lock.lock()
+            let settings = scrollSettings
+            lock.unlock()
+            return scaleWheel(event, with: settings)
+        }
+
+        if type == .mouseMoved || type == .leftMouseDragged || type == .rightMouseDragged || type == .otherMouseDragged {
             lock.lock()
             let active = ButtonSource.allCases.first(where: { activeSources.contains($0) })
             lock.unlock()
@@ -84,6 +110,13 @@ final class MouseButtonMonitor: @unchecked Sendable {
             source = .right; pressed = true
         case .rightMouseUp:
             source = .right; pressed = false
+        case .otherMouseDown, .otherMouseUp:
+            // Button number 2 is the middle button; 3/4 are back/forward and
+            // are handled through HID++ diversion instead.
+            guard event.getIntegerValueField(.mouseEventButtonNumber) == 2 else {
+                return Unmanaged.passUnretained(event)
+            }
+            source = .middle; pressed = type == .otherMouseDown
         default:
             return Unmanaged.passUnretained(event)
         }
@@ -104,6 +137,38 @@ final class MouseButtonMonitor: @unchecked Sendable {
         lock.unlock()
         onButton?(source, pressed)
         return nil
+    }
+
+    /// Rescales a wheel event in place. Unlike pointer motion, a scroll event
+    /// carries its whole meaning in these delta fields, so editing them is
+    /// enough — nothing else has to be moved.
+    private func scaleWheel(_ event: CGEvent, with settings: ScrollSettings) -> Unmanaged<CGEvent>? {
+        let pointY = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
+        let pointX = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis2)
+        let fixedY = event.getDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1)
+        let fixedX = event.getDoubleValueField(.scrollWheelEventFixedPtDeltaAxis2)
+        let lineY = event.getDoubleValueField(.scrollWheelEventDeltaAxis1)
+        let lineX = event.getDoubleValueField(.scrollWheelEventDeltaAxis2)
+
+        // Line-based wheels report no point delta, so fall back for the curve.
+        let distance = max(hypot(pointX, pointY), hypot(lineX, lineY) * 10)
+        let gain = settings.gain(forDistance: distance)
+        let signY: Double = settings.invertVertical ? -1 : 1
+        let signX: Double = settings.invertHorizontal ? -1 : 1
+        guard gain != 1 || signY != 1 || signX != 1 else {
+            onWheel?(pointY, pointX)
+            return Unmanaged.passUnretained(event)
+        }
+
+        event.setDoubleValueField(.scrollWheelEventPointDeltaAxis1, value: pointY * gain * signY)
+        event.setDoubleValueField(.scrollWheelEventPointDeltaAxis2, value: pointX * gain * signX)
+        event.setDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1, value: fixedY * gain * signY)
+        event.setDoubleValueField(.scrollWheelEventFixedPtDeltaAxis2, value: fixedX * gain * signX)
+        event.setDoubleValueField(.scrollWheelEventDeltaAxis1, value: lineY * gain * signY)
+        event.setDoubleValueField(.scrollWheelEventDeltaAxis2, value: lineX * gain * signX)
+
+        onWheel?(pointY * gain * signY, pointX * gain * signX)
+        return Unmanaged.passUnretained(event)
     }
 
     private func isInsideOwnWindow(_ point: CGPoint) -> Bool {
