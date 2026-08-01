@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Spintune</title>
+<meta name="description" content="Spintune collects no personal information and makes no network connections. This policy covers what stays on your Mac and why each permission is needed.">
+<link rel="canonical" href="https://spintune.gigowat.com/privacy.en.html">
+<link rel="alternate" hreflang="ja" href="https://spintune.gigowat.com/privacy.ja.html">
+<link rel="alternate" hreflang="en" href="https://spintune.gigowat.com/privacy.en.html">
+<meta name="robots" content="index, follow">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="wrap doc">
+  <a class="back" href="index.en.html">&larr; Spintune</a>
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: 2026-08-02</p>
+
+  <p>Spintune (“the app”) tunes the behaviour of Logitech trackballs on macOS. This policy describes how the app handles information.</p>
+
+  <h2>What we collect</h2>
+  <p><strong>The app collects no personal information and transmits nothing.</strong> Specifically, it does not:</p>
+  <ul>
+    <li>collect identifying information (name, email address, account details)</li>
+    <li>run analytics, telemetry, or automatic crash reporting</li>
+    <li>display advertising or use any data for advertising</li>
+    <li>share or sell data to third parties</li>
+  </ul>
+  <p>The app performs no network communication at all. Every feature behaves identically on a machine with no internet connection.</p>
+
+  <h2>What is stored on your Mac</h2>
+  <p>The following is stored only on your own Mac and never leaves it.</p>
+  <table>
+    <tr><th>Data</th><th>Location</th></tr>
+    <tr>
+      <td>Button assignments, pointer and scroll settings, excluded apps</td>
+      <td><code>~/Library/Preferences/</code> (standard macOS preferences)</td>
+    </tr>
+    <tr>
+      <td>Diagnostic log (names of connected devices, detected button events, errors)</td>
+      <td><code>~/Library/Logs/Spintune.log</code></td>
+    </tr>
+  </table>
+  <p>The diagnostic log exists so you can find out why a device is not being recognised. You may delete it at any time. Support may ask you to send it, but doing so is always your choice.</p>
+
+  <h2>Input handling</h2>
+  <p>The app requires the macOS Accessibility and Input Monitoring permissions, and it observes mouse button events and trackball movement.</p>
+  <p>This is what makes the assigned actions possible. <strong>The app does not record keystrokes</strong>, and it neither stores nor transmits what it observes; the diagnostic log records only which button was pressed.</p>
+  <p>When you assign a keyboard shortcut, the keys you press are saved as that assignment. That is a setting you deliberately created, not a record of your typing.</p>
+
+  <h2>Why each permission is needed</h2>
+  <table>
+    <tr><th>Permission</th><th>Purpose</th></tr>
+    <tr><td>Accessibility</td><td>Observing left and right clicks, and detecting press-and-hold gestures</td></tr>
+    <tr><td>Event posting</td><td>Performing the keystrokes and clicks you assign</td></tr>
+    <tr><td>Input Monitoring</td><td>Communicating with the trackball and receiving its buttons</td></tr>
+  </table>
+
+  <h2>Payments</h2>
+  <p>Sales and payment processing are handled by an external payment provider. Your name, email address and payment details are handled by that provider; <strong>neither the app nor its developer ever receives your card details.</strong> The provider’s own privacy policy governs how it handles your information.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>If this policy changes, the “Last updated” date above will change and the revision will be described here.</p>
+
+  <h2>Contact</h2>
+  <p>For questions about this policy or the app, write to <a href="mailto:admin@gigowat.com">admin@gigowat.com</a>.</p>
+
+  <hr>
+  <p class="note">
+    Spintune is an independent product and is not affiliated with Logitech International S.A.
+    MX ERGO and ERGO M575 are trademarks of Logitech International S.A., used here solely to
+    describe compatibility.
+  </p>
+  <p class="note"><a href="privacy.ja.html">日本語</a></p>
+</div>
+
+</body>
+</html>

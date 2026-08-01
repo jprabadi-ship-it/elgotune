@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spintune — MX ERGO / ERGO M575 のためのトラックボール調整アプリ</title>
+<meta name="description" content="Logitech MX ERGO と ERGO M575 のボタン・ポインタ・スクロールを macOS で自由に調整。中クリック、チルト、精密モードボタンの割り当て、慣性スクロール、アプリ別の無効化に対応。">
+<link rel="canonical" href="https://spintune.gigowat.com/index.ja.html">
+<link rel="alternate" hreflang="ja" href="https://spintune.gigowat.com/index.ja.html">
+<link rel="alternate" hreflang="en" href="https://spintune.gigowat.com/index.en.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Spintune">
+<meta property="og:title" content="Spintune — MX ERGO / ERGO M575 のためのトラックボール調整アプリ">
+<meta property="og:description" content="Logitech MX ERGO と ERGO M575 のボタン・ポインタ・スクロールを macOS で自由に調整。中クリック、チルト、精密モードボタンの割り当て、慣性スクロール、アプリ別の無効化に対応。">
+<meta property="og:url" content="https://spintune.gigowat.com/index.ja.html">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+
+<header>
+  <div class="wrap">
+    <h1>Spintune</h1>
+    <p class="tagline">MX ERGO と ERGO M575 のためのトラックボール調整アプリ。<br>ボタン、ポインタ、スクロールを、自分の手に合わせる。</p>
+    <div class="cta">
+      <a class="button" href="#download">ダウンロード</a>
+      <a class="button secondary" href="#features">できること</a>
+    </div>
+    <p class="note" style="margin-top:20px">macOS 14 以降 / Apple Silicon・Intel 対応 / 日本語・英語</p>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <h2>できること</h2>
+    <p class="lede">Logitech の設定ソフトが対応していない操作も、トラックボール本体の機能として設定できます。</p>
+    <div class="grid">
+      <div class="card">
+        <h3>すべてのボタンを割り当て</h3>
+        <p>精密モード、左右・中クリック、戻る／進む、ホイールの左右チルト、デバイス切替。接続中の機種が持つボタンだけが表示されます。</p>
+      </div>
+      <div class="card">
+        <h3>短押しと長押しで別々の操作</h3>
+        <p>1つのボタンに2つの機能。長押しの判定時間は 100〜1500ms の範囲で調整できます。</p>
+      </div>
+      <div class="card">
+        <h3>押しながら転がしてスクロール</h3>
+        <p>ボタンを押している間、ボールの回転を縦横スクロールに変換します。ホイールに手を移さずに長い文書を送れます。</p>
+      </div>
+      <div class="card">
+        <h3>方向ジェスチャー</h3>
+        <p>押しながら上下左右に転がして、4方向それぞれに別の操作を割り当て。デスクトップ切り替えやタブ移動に。</p>
+      </div>
+      <div class="card">
+        <h3>慣性スクロール</h3>
+        <p>ホイールを止めたあとも滑らかに流れ続けます。滑走の長さと初速は好みに合わせて調整でき、次の操作で即座に止まります。</p>
+      </div>
+      <div class="card">
+        <h3>ポインタの速度と加速</h3>
+        <p>デバイス単位で解像度と加速カーブを設定。macOS のスライダーでは届かない範囲まで、細かく詰められます。</p>
+      </div>
+      <div class="card">
+        <h3>アプリ別に無効化</h3>
+        <p>ゲームや配信ソフトなど、標準動作のままにしたいアプリを登録。そのアプリが前面にある間だけ自動で無効になります。</p>
+      </div>
+      <div class="card">
+        <h3>キーボードショートカット</h3>
+        <p>任意のキー組み合わせをボタンに割り当て。Mission Control やアプリケーションウインドウなども選べます。</p>
+      </div>
+      <div class="card">
+        <h3>設定の書き出しと読み込み</h3>
+        <p>すべての設定を JSON ファイルで保存・復元。Mac を移行するときも設定を作り直す必要がありません。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="devices">
+  <div class="wrap">
+    <h2>対応デバイス</h2>
+    <p class="lede">動作を確認した機種のみを対象としています。それ以外の Logitech デバイスには一切変更を加えません。</p>
+    <table>
+      <tr><th>機種</th><th>ボタン</th><th>ポインタ・スクロール</th><th>デバイス切替</th></tr>
+      <tr>
+        <td><strong>MX ERGO</strong><br><span class="note">Unifying レシーバー</span></td>
+        <td>精密モード、左右・中クリック、戻る／進む、左右チルト</td>
+        <td>対応</td>
+        <td>対応</td>
+      </tr>
+      <tr>
+        <td><strong>ERGO M575 / M575S / M575SP</strong><br><span class="note">Bluetooth・Bolt レシーバー</span></td>
+        <td>左右・中クリック、戻る／進む</td>
+        <td>対応</td>
+        <td>本体側の切り替えボタンをそのまま使用</td>
+      </tr>
+    </table>
+    <p class="note" style="margin-top:20px">バッテリー残量はメニューバーに常時表示されます。2台同時に接続している場合は、それぞれの残量を表示します。</p>
+  </div>
+</section>
+
+<section id="requirements">
+  <div class="wrap">
+    <h2>必要な環境と権限</h2>
+    <p class="lede">トラックボールを制御するため、macOS の許可が3つ必要です。初回起動時にガイドが表示されます。</p>
+    <table>
+      <tr><th>権限</th><th>用途</th></tr>
+      <tr><td>アクセシビリティ</td><td>左右クリックの監視と、押しっぱなしジェスチャーの判定</td></tr>
+      <tr><td>操作送信</td><td>割り当てたキー操作やクリックの実行</td></tr>
+      <tr><td>入力監視</td><td>トラックボール本体との通信、ボタン入力の受け取り</td></tr>
+    </table>
+    <p class="note" style="margin-top:20px">
+      Spintune はネットワーク通信を一切行いません。キーボード入力の記録もしません。詳しくは<a href="privacy.ja.html">プライバシーポリシー</a>をご覧ください。
+    </p>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <h2>購入とダウンロード</h2>
+    <p class="lede">買い切りです。サブスクリプションではありません。</p>
+    <p class="price">¥— <span class="note" style="font-size:15px">（価格は準備中）</span></p>
+    <div class="cta" style="margin-top:20px">
+      <a class="button" href="#">購入する</a>
+      <a class="button secondary" href="#">体験版をダウンロード</a>
+    </div>
+    <p class="note" style="margin-top:20px">
+      Apple の公証（notarization）済みで、そのまま開けます。Mac App Store では配布していません（App Store の制約上、ボタンやポインタの制御が実装できないためです）。
+    </p>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>よくある質問</h2>
+
+    <details>
+      <summary>Logi Options+ と併用できますか？</summary>
+      <p>同じボタンを両方から制御すると競合します。Spintune を使う場合は Logi Options+ を終了することをおすすめします。Spintune のカスタマイズを無効にすると、ボタンは本体の標準動作に戻ります。</p>
+    </details>
+
+    <details>
+      <summary>アプリを終了したら設定はどうなりますか？</summary>
+      <p>終了時に、ポインタの設定もボタンの割り当ても、macOS の標準状態へ自動的に戻します。アンインストールしても設定が残り続けることはありません。</p>
+    </details>
+
+    <details>
+      <summary>他社製のマウスも使っていますが影響しますか？</summary>
+      <p>中クリック・戻る／進む・チルト・精密モードは対応機種にのみ適用されます。ただし左右クリックの割り当てだけは、macOS のイベントにデバイスの区別がないため、接続中の他のマウスにも適用されます。左右クリックを標準のままにしておけば影響はありません。</p>
+    </details>
+
+    <details>
+      <summary>2台のトラックボールを同時に使えますか？</summary>
+      <p>使えます。両方のボタンが同時に機能し、バッテリー残量もそれぞれ表示されます。ただし割り当て設定はデバイス共通です。</p>
+    </details>
+
+    <details>
+      <summary>macOS のアップデートで動かなくなりませんか？</summary>
+      <p>ポインタの速度と加速の調整には、macOS が公開していない仕組みを使っています。将来の macOS で利用できなくなる可能性があり、その場合はポインタ調整機能のみが無効になります（アプリの他の機能と起動には影響しません）。判明し次第、対応版を配布します。</p>
+    </details>
+
+    <details>
+      <summary>返金できますか？</summary>
+      <p>購入後14日以内であれば、理由を問わず返金します。<a href="mailto:admin@gigowat.com">admin@gigowat.com</a> までご連絡ください。</p>
+    </details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>
+      <a href="privacy.ja.html">プライバシーポリシー</a> ・
+      <a href="mailto:admin@gigowat.com">サポート（admin@gigowat.com）</a> ・
+      <a href="index.en.html">English</a>
+    </p>
+    <p>
+      Spintune は Logitech International S.A. とは関係のない独立した製品です。
+      MX ERGO、ERGO M575、Logi Options+ は Logitech International S.A. の商標であり、
+      対応機種を示す目的でのみ使用しています。
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
