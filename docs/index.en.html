@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spintune — Trackball tuning for MX ERGO and ERGO M575</title>
+<meta name="description" content="Tune the buttons, pointer and scrolling of the Logitech MX ERGO and ERGO M575 on macOS. Remap the precision button, wheel tilt and middle click, add momentum scrolling, and disable it per app.">
+<style>
+  :root {
+    --bg: #ffffff; --fg: #16181d; --muted: #5c6270; --line: #e3e6ec;
+    --accent: #2f6df6; --card: #f7f8fa; --code: #f0f2f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --fg: #e8eaf0; --muted: #9aa2b1; --line: #262a33;
+      --accent: #6f9bff; --card: #161a21; --code: #1b1f27;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+  header { padding: 88px 0 56px; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 44px; line-height: 1.15; margin: 0 0 12px; letter-spacing: -0.02em; }
+  .tagline { font-size: 20px; color: var(--muted); margin: 0 0 32px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .button {
+    display: inline-block; background: var(--accent); color: #fff; text-decoration: none;
+    padding: 12px 24px; border-radius: 8px; font-weight: 600;
+  }
+  .button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .note { font-size: 14px; color: var(--muted); }
+  section { padding: 56px 0; border-bottom: 1px solid var(--line); }
+  h2 { font-size: 26px; margin: 0 0 8px; letter-spacing: -0.01em; }
+  h3 { font-size: 17px; margin: 0 0 4px; }
+  .lede { color: var(--muted); margin: 0 0 28px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  code { background: var(--code); padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+  details { border-bottom: 1px solid var(--line); padding: 14px 0; }
+  details summary { cursor: pointer; font-weight: 600; }
+  details p { color: var(--muted); margin: 10px 0 0; }
+  footer { padding: 40px 0 72px; color: var(--muted); font-size: 14px; }
+  footer a { color: var(--muted); }
+  a { color: var(--accent); }
+  .price { font-size: 32px; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>Spintune</h1>
+    <p class="tagline">Trackball tuning for the MX ERGO and ERGO M575.<br>Make the buttons, pointer and scrolling fit your hand.</p>
+    <div class="cta">
+      <a class="button" href="#download">Download</a>
+      <a class="button secondary" href="#features">What it does</a>
+    </div>
+    <p class="note" style="margin-top:20px">macOS 14 or later · Apple Silicon and Intel · English and Japanese</p>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <h2>What it does</h2>
+    <p class="lede">Reach the controls Logitech’s own software leaves out, and treat them as first-class buttons.</p>
+    <div class="grid">
+      <div class="card">
+        <h3>Remap every button</h3>
+        <p>Precision button, left, right and middle click, back and forward, wheel tilt, Easy-Switch. Only the buttons your connected device actually has are offered.</p>
+      </div>
+      <div class="card">
+        <h3>Two actions per button</h3>
+        <p>A short press and a press-and-hold can do different things. The hold threshold is adjustable from 100 to 1500 ms.</p>
+      </div>
+      <div class="card">
+        <h3>Hold and roll to scroll</h3>
+        <p>While a button is held, ball movement becomes vertical and horizontal scrolling — no need to move your finger to the wheel.</p>
+      </div>
+      <div class="card">
+        <h3>Direction gestures</h3>
+        <p>Hold a button and roll up, down, left or right for four more actions. Ideal for switching desktops or moving between tabs.</p>
+      </div>
+      <div class="card">
+        <h3>Momentum scrolling</h3>
+        <p>Long documents keep gliding after the wheel stops. Tune how far and how fast it coasts; any input stops it instantly.</p>
+      </div>
+      <div class="card">
+        <h3>Pointer speed and acceleration</h3>
+        <p>Set resolution and the acceleration curve per device, well past the range the macOS slider can reach.</p>
+      </div>
+      <div class="card">
+        <h3>Per-app opt-out</h3>
+        <p>List the apps that should keep stock behaviour — games, streaming tools — and customization switches itself off while they are frontmost.</p>
+      </div>
+      <div class="card">
+        <h3>Keyboard shortcuts</h3>
+        <p>Assign any key combination to a button, alongside Mission Control, Application Windows, Show Desktop and more.</p>
+      </div>
+      <div class="card">
+        <h3>Export and import</h3>
+        <p>Save every setting to a JSON file and restore it later — no rebuilding your setup on a new Mac.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="devices">
+  <div class="wrap">
+    <h2>Supported devices</h2>
+    <p class="lede">Only the models it has been tested against. Every other Logitech device is left untouched.</p>
+    <table>
+      <tr><th>Model</th><th>Buttons</th><th>Pointer and scrolling</th><th>Device switching</th></tr>
+      <tr>
+        <td><strong>MX ERGO</strong><br><span class="note">Unifying receiver</span></td>
+        <td>Precision, left / right / middle click, back and forward, wheel tilt</td>
+        <td>Yes</td>
+        <td>Yes</td>
+      </tr>
+      <tr>
+        <td><strong>ERGO M575 / M575S / M575SP</strong><br><span class="note">Bluetooth or Bolt receiver</span></td>
+        <td>Left / right / middle click, back and forward</td>
+        <td>Yes</td>
+        <td>Uses the device’s own Easy-Switch button</td>
+      </tr>
+    </table>
+    <p class="note" style="margin-top:20px">Battery level sits in the menu bar. Connect both trackballs and you see both levels.</p>
+  </div>
+</section>
+
+<section id="requirements">
+  <div class="wrap">
+    <h2>Requirements and permissions</h2>
+    <p class="lede">Three macOS permissions are needed to control a trackball. A guide walks you through them on first launch.</p>
+    <table>
+      <tr><th>Permission</th><th>Purpose</th></tr>
+      <tr><td>Accessibility</td><td>Observing left and right clicks, detecting press-and-hold gestures</td></tr>
+      <tr><td>Event posting</td><td>Performing the keystrokes and clicks you assign</td></tr>
+      <tr><td>Input Monitoring</td><td>Communicating with the trackball and receiving its buttons</td></tr>
+    </table>
+    <p class="note" style="margin-top:20px">
+      Spintune makes no network connections and never records keystrokes. See the <a href="privacy-policy.en.md">privacy policy</a> for details.
+    </p>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <h2>Buy and download</h2>
+    <p class="lede">A one-time purchase, not a subscription.</p>
+    <p class="price">$— <span class="note" style="font-size:15px">(pricing coming soon)</span></p>
+    <div class="cta" style="margin-top:20px">
+      <a class="button" href="#">Buy</a>
+      <a class="button secondary" href="#">Download the trial</a>
+    </div>
+    <p class="note" style="margin-top:20px">
+      Notarized by Apple, so it opens without warnings. Not on the Mac App Store: its sandbox rules make button and pointer control impossible.
+    </p>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Questions</h2>
+
+    <details>
+      <summary>Can I run it alongside Logi Options+?</summary>
+      <p>Driving the same button from both conflicts, so quit Logi Options+ while using Spintune. Turning Spintune’s customization off returns every button to its stock behaviour.</p>
+    </details>
+
+    <details>
+      <summary>What happens to my device when I quit?</summary>
+      <p>Quitting restores the pointer values and every button to the macOS defaults, so nothing is left behind if you uninstall.</p>
+    </details>
+
+    <details>
+      <summary>I also use a mouse from another brand. Is it affected?</summary>
+      <p>Middle click, back and forward, wheel tilt and the precision button apply only to supported devices. Left and right click assignments are the exception: macOS events carry no device identity, so those apply to any connected mouse. Leave left and right click at their defaults and nothing else is affected.</p>
+    </details>
+
+    <details>
+      <summary>Can I use two trackballs at once?</summary>
+      <p>Yes. Both sets of buttons work simultaneously and both battery levels are shown. Assignments are shared across devices.</p>
+    </details>
+
+    <details>
+      <summary>Will a macOS update break it?</summary>
+      <p>Pointer speed and acceleration rely on an interface Apple does not document. A future macOS could withdraw it, which would disable pointer tuning only — the rest of the app and its launch are unaffected. An updated build follows as soon as that happens.</p>
+    </details>
+
+    <details>
+      <summary>Can I get a refund?</summary>
+      <p>Yes — within 14 days of purchase, no reason needed. Write to <a href="mailto:admin@gigowat.com">admin@gigowat.com</a>.</p>
+    </details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>
+      <a href="privacy-policy.en.md">Privacy policy</a> ·
+      <a href="mailto:admin@gigowat.com">Support (admin@gigowat.com)</a> ·
+      <a href="index.html">日本語</a>
+    </p>
+    <p>
+      Spintune is an independent product and is not affiliated with Logitech International S.A.
+      MX ERGO, ERGO M575 and Logi Options+ are trademarks of Logitech International S.A.,
+      used here solely to describe compatibility.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -20,7 +20,7 @@ enum LoginItem {
             return nil
         } catch {
             if SMAppService.mainApp.status == .requiresApproval {
-                return L("システム設定 > 一般 > ログイン項目 で ErgoTune を許可してください")
+                return L("システム設定 > 一般 > ログイン項目 で Spintune を許可してください")
             }
             return L("ログイン時起動を変更できません: %@", error.localizedDescription)
         }

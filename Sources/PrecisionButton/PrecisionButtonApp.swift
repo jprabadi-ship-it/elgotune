@@ -5,7 +5,7 @@ struct PrecisionButtonApp: App {
     @StateObject private var model = AppModel()
 
     var body: some Scene {
-        Window("ErgoTune", id: "settings") {
+        Window("Spintune", id: "settings") {
             ContentView()
                 .environmentObject(model)
                 .frame(minWidth: 700, minHeight: 800)
@@ -78,6 +78,6 @@ private struct MenuBarBatteryLabel: View {
                 .foregroundStyle(.background)
         }
         .frame(width: 22, height: 18)
-        .accessibilityLabel(L("ErgoTune、バッテリー %@", battery?.displayText ?? L("取得中")))
+        .accessibilityLabel(L("Spintune、バッテリー %@", battery?.displayText ?? L("取得中")))
     }
 }

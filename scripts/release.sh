@@ -1,25 +1,25 @@
 #!/bin/zsh
-# Builds a distributable, notarized ErgoTune.dmg.
+# Builds a distributable, notarized Spintune.dmg.
 #
 # Requires an Apple Developer Program membership:
 #   - a "Developer ID Application" certificate in the keychain
 #   - a notarytool keychain profile (one-time setup):
-#       xcrun notarytool store-credentials ErgoTune \
+#       xcrun notarytool store-credentials Spintune \
 #         --apple-id <apple-id> --team-id <team-id> --password <app-specific-password>
 #
 # Usage: ./scripts/release.sh [--skip-notarize]
 set -euo pipefail
 
 project_dir="${0:A:h:h}"
-stage_dir="/tmp/ergotune-release"
-app_dir="$stage_dir/ErgoTune.app"
+stage_dir="/tmp/spintune-release"
+app_dir="$stage_dir/Spintune.app"
 contents_dir="$app_dir/Contents"
-dmg_path="$stage_dir/ErgoTune.dmg"
-notary_profile="${ERGOTUNE_NOTARY_PROFILE:-ErgoTune}"
+dmg_path="$stage_dir/Spintune.dmg"
+notary_profile="${SPINTUNE_NOTARY_PROFILE:-Spintune}"
 skip_notarize=0
 [[ "${1:-}" == "--skip-notarize" ]] && skip_notarize=1
 
-identity="${ERGOTUNE_RELEASE_IDENTITY:-$(security find-identity -v -p codesigning \
+identity="${SPINTUNE_RELEASE_IDENTITY:-$(security find-identity -v -p codesigning \
   | awk -F'"' '/Developer ID Application/ {print $2; exit}')}"
 if [[ -z "$identity" ]]; then
   cat >&2 <<'MSG'
@@ -50,7 +50,7 @@ xcrun actool "$project_dir/Resources/Assets.xcassets" \
   --platform macosx \
   --minimum-deployment-target 14.0 \
   --app-icon AppIcon \
-  --output-partial-info-plist "/tmp/ergotune-assets.plist" >/dev/null
+  --output-partial-info-plist "/tmp/spintune-assets.plist" >/dev/null
 
 xattr -cr "$app_dir"
 # Notarization requires the hardened runtime and a secure timestamp.
@@ -58,7 +58,7 @@ codesign --force --deep --options runtime --timestamp \
   --sign "$identity" "$app_dir"
 codesign --verify --strict --verbose=2 "$app_dir"
 
-hdiutil create -volname ErgoTune -srcfolder "$app_dir" -ov -format UDZO "$dmg_path" >/dev/null
+hdiutil create -volname Spintune -srcfolder "$app_dir" -ov -format UDZO "$dmg_path" >/dev/null
 codesign --force --timestamp --sign "$identity" "$dmg_path"
 
 if (( skip_notarize )); then

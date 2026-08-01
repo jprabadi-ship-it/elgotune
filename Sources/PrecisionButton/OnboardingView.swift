@@ -55,9 +55,9 @@ struct OnboardingView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(L("ErgoTune を使う準備"))
+                Text(L("Spintune を使う準備"))
                     .font(.title.bold())
-                Text(L("トラックボールを制御するために、3つの許可が必要です。下のボタンからシステム設定を開き、リストの ErgoTune をオンにしてください。"))
+                Text(L("トラックボールを制御するために、3つの許可が必要です。下のボタンからシステム設定を開き、リストの Spintune をオンにしてください。"))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -89,7 +89,7 @@ struct OnboardingView: View {
             Divider()
 
             Label(
-                L("アプリを更新すると許可が外れることがあります。そのときは一覧から ErgoTune を削除して、追加し直してください。"),
+                L("アプリを更新すると許可が外れることがあります。そのときは一覧から Spintune を削除して、追加し直してください。"),
                 systemImage: "info.circle"
             )
             .font(.caption)

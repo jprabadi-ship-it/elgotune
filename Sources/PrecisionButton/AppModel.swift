@@ -711,7 +711,7 @@ final class AppModel: ObservableObject {
     /// inspected after the fact.
     static let logFileURL = FileManager.default
         .homeDirectoryForCurrentUser
-        .appending(path: "Library/Logs/ErgoTune.log")
+        .appending(path: "Library/Logs/Spintune.log")
 
     private static func writeToLogFile(_ entry: String) {
         guard let data = (entry + "\n").data(using: .utf8) else { return }

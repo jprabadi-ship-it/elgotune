@@ -1,4 +1,4 @@
-# ErgoTune
+# Spintune
 
 MX ERGO と ERGO M575 のボタン・ポインタ・スクロールをまとめて調整する、軽量なメニューバーアプリです。バンドルIDは `jp.local.PrecisionButton` のままで、旧称は Precision Button です。
 
@@ -30,7 +30,7 @@ swift run PrecisionButton
 
 ```sh
 ./scripts/build-app.sh
-open "/tmp/ergotune-stage/ErgoTune.app"
+open "/tmp/spintune-stage/Spintune.app"
 ```
 
 初回起動時は、画面の「権限を許可…」から次の権限を許可してください。
@@ -44,9 +44,9 @@ open "/tmp/ergotune-stage/ErgoTune.app"
 
 `build-app.sh` はキーチェーンの Apple Development / Developer ID 証明書を自動で使って署名します（`PRECISION_SIGN_IDENTITY` で明示指定も可能）。署名IDが安定していれば、アプリを更新してもアクセシビリティと入力監視の許可は維持されます。署名IDが見つからない場合はアドホック署名にフォールバックし、その場合は更新のたびに許可の再登録が必要です。
 
-なお、プロジェクトがGoogleドライブ上にあると拡張属性が即座に復活して `codesign` が失敗するため、アプリバンドルは `/tmp/ergotune-stage` で組み立てて署名しています。
+なお、プロジェクトがGoogleドライブ上にあると拡張属性が即座に復活して `codesign` が失敗するため、アプリバンドルは `/tmp/spintune-stage` で組み立てて署名しています。
 
-デバイスを開けない場合、まず権限を確認してください。システム設定の各項目から「ErgoTune」をいったん削除し、`/Applications/ErgoTune.app` を追加し直してからアプリを再起動します。診断ログは `~/Library/Logs/ErgoTune.log` にも記録されます。
+デバイスを開けない場合、まず権限を確認してください。システム設定の各項目から「Spintune」をいったん削除し、`/Applications/Spintune.app` を追加し直してからアプリを再起動します。診断ログは `~/Library/Logs/Spintune.log` にも記録されます。
 
 権限に問題がないのに開けない場合は、SteerMouse など他のドライバがデバイスを占有しているか、HID++の転送設定が競合している可能性があります。カスタマイズを無効にすると、ボタンはデバイスの標準動作へ戻ります。
 
@@ -62,11 +62,11 @@ open "/tmp/ergotune-stage/ErgoTune.app"
 
 `scripts/release.sh` が、Hardened Runtime 付きの署名 → DMG 作成 → 公証 → ステープル → `spctl` 検証まで行います。Apple Developer Program への加入と、次の準備が必要です。
 
-1. Developer ID Application 証明書をキーチェーンに用意（`ERGOTUNE_RELEASE_IDENTITY` で明示指定も可能）
+1. Developer ID Application 証明書をキーチェーンに用意（`SPINTUNE_RELEASE_IDENTITY` で明示指定も可能）
 2. notarytool のプロファイルを一度だけ作成
 
 ```sh
-xcrun notarytool store-credentials ErgoTune \
+xcrun notarytool store-credentials Spintune \
   --apple-id <apple-id> --team-id <team-id> --password <app用パスワード>
 ```
 
