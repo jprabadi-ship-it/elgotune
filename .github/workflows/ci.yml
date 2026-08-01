@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: swift --version
+
+      - name: Build
+        run: swift build -v
+
+      - name: Test
+        run: swift test
+
+      # Catches a missing translation before it ships as Japanese text to
+      # everyone else; the app falls back silently otherwise.
+      - name: Check every localized key has an English translation
+        run: |
+          grep -rhoE 'L\("[^"]+"' Sources | sed 's/^L("//; s/"$//' | sort -u > /tmp/keys.txt
+          grep -oE '^"[^"]+"' Sources/PrecisionButton/Resources/en.lproj/Localizable.strings \
+            | tr -d '"' | sort -u > /tmp/translated.txt
+          missing=$(comm -23 /tmp/keys.txt /tmp/translated.txt)
+          if [ -n "$missing" ]; then
+            echo "Missing English translations:"
+            echo "$missing"
+            exit 1
+          fi
+          echo "All $(wc -l < /tmp/keys.txt) keys translated."

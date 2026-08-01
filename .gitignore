@@ -3,3 +3,7 @@
 build/
 DerivedData/
 *.xcuserstate
+
+# Build artifacts staged outside the repo
+/tmp/
+*.dmg

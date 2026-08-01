@@ -5,12 +5,12 @@ project_dir="${0:A:h:h}"
 # The project lives on Google Drive, which re-adds extended attributes the
 # moment they are cleared. codesign rejects those, so stage the bundle on a
 # local disk and sign it there.
-stage_dir="/tmp/spintune-stage"
-app_dir="$stage_dir/Spintune.app"
+stage_dir="/tmp/elgotune-stage"
+app_dir="$stage_dir/Elgotune.app"
 contents_dir="$app_dir/Contents"
 
-export CLANG_MODULE_CACHE_PATH="/tmp/spintune-clang-cache"
-export SWIFTPM_MODULECACHE_OVERRIDE="/tmp/spintune-swift-cache"
+export CLANG_MODULE_CACHE_PATH="/tmp/elgotune-clang-cache"
+export SWIFTPM_MODULECACHE_OVERRIDE="/tmp/elgotune-swift-cache"
 
 cd "$project_dir"
 swift build -c release
@@ -27,7 +27,7 @@ xcrun actool "$project_dir/Resources/Assets.xcassets" \
   --platform macosx \
   --minimum-deployment-target 14.0 \
   --app-icon AppIcon \
-  --output-partial-info-plist "/tmp/spintune-assets.plist" >/dev/null
+  --output-partial-info-plist "/tmp/elgotune-assets.plist" >/dev/null
 
 # A stable signing identity keeps the app's designated requirement unchanged
 # across rebuilds, so accessibility and input-monitoring approvals survive an

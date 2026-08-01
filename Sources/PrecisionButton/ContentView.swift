@@ -74,7 +74,7 @@ struct ContentView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Spintune")
+                Text("Elgotune")
                     .font(.largeTitle.bold())
                 Text(L("MX ERGO / ERGO M575 のボタンを、好きな操作に変えます。"))
                     .foregroundStyle(.secondary)
@@ -432,7 +432,7 @@ struct ContentView: View {
     private func presentSettingsExport() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "Spintune-Settings.json"
+        panel.nameFieldStringValue = "Elgotune-Settings.json"
         if panel.runModal() == .OK, let url = panel.url {
             model.exportSettings(to: url)
         }

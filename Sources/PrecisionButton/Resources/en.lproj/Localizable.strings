@@ -1,4 +1,4 @@
-/* Spintune — English. Keys are the Japanese source strings. */
+/* Elgotune — English. Keys are the Japanese source strings. */
 
 /* Tabs and window chrome */
 "ボタン割り当て" = "Buttons";
@@ -31,7 +31,7 @@
 "バッテリーを取得中…" = "Reading battery…";
 "取得中" = "reading";
 "取得中…" = "reading…";
-"Spintune、バッテリー %@" = "Spintune, battery %@";
+"Elgotune、バッテリー %@" = "Elgotune, battery %@";
 
 /* Battery states */
 "使用中" = "in use";
@@ -147,7 +147,7 @@
 "初回は システム設定 > 一般 > ログイン項目 での承認が必要な場合があります。" = "The first time, you may need to approve it in System Settings > General > Login Items.";
 "バージョン %@ (%@)" = "Version %@ (%@)";
 "対応デバイス: MX ERGO / ERGO M575（M575S・M575SP を含む）" = "Supported devices: MX ERGO and ERGO M575 (including M575S and M575SP)";
-"システム設定 > 一般 > ログイン項目 で Spintune を許可してください" = "Allow Spintune in System Settings > General > Login Items";
+"システム設定 > 一般 > ログイン項目 で Elgotune を許可してください" = "Allow Elgotune in System Settings > General > Login Items";
 "システム設定での承認待ち" = "Waiting for approval in System Settings";
 "登録できません（/Applications に配置してください）" = "Cannot register (move the app to /Applications)";
 "ログイン時起動を変更できません: %@" = "Cannot change launch at login: %@";
@@ -184,6 +184,7 @@
 "%@を検出（CID 0x%@）" = "Found %@ (CID 0x%@)";
 "未対応のボタン（CID 0x%@%@）" = "Unsupported button (CID 0x%@%@)";
 " / 転送不可" = " / cannot divert";
+"ボタン" = "button";
 "%@をアプリへ転送" = "Diverting %@ to this app";
 "%@の転送を解除" = "Stopped diverting %@";
 "デバイス切り替え: チャンネル%@へ" = "Device switch: to channel %@";
@@ -199,14 +200,14 @@
 "%@: 次の方向操作を待機" = "%@: ready for the next direction";
 
 /* Onboarding */
-"Spintune を使う準備" = "Set up Spintune";
-"トラックボールを制御するために、3つの許可が必要です。下のボタンからシステム設定を開き、リストの Spintune をオンにしてください。" = "Three permissions are needed to control your trackball. Open System Settings with the buttons below and turn Spintune on in each list.";
+"Elgotune を使う準備" = "Set up Elgotune";
+"トラックボールを制御するために、3つの許可が必要です。下のボタンからシステム設定を開き、リストの Elgotune をオンにしてください。" = "Three permissions are needed to control your trackball. Open System Settings with the buttons below and turn Elgotune on in each list.";
 "左右クリックの監視と、押しっぱなしジェスチャーに必要です。" = "Needed to watch left and right clicks and to run press-and-hold gestures.";
 "割り当てたキー操作やクリックを送信するために必要です。" = "Needed to send the keystrokes and clicks you assign.";
 "トラックボール本体と通信し、ボタンを受け取るために必要です。" = "Needed to talk to the trackball itself and receive its buttons.";
 "許可済み" = "Granted";
 "開く" = "Open";
-"アプリを更新すると許可が外れることがあります。そのときは一覧から Spintune を削除して、追加し直してください。" = "Updating the app can drop these approvals. If that happens, remove Spintune from the list and add it again.";
+"アプリを更新すると許可が外れることがあります。そのときは一覧から Elgotune を削除して、追加し直してください。" = "Updating the app can drop these approvals. If that happens, remove Elgotune from the list and add it again.";
 "まとめて許可を求める" = "Request All";
 "はじめる" = "Get Started";
 "あとで" = "Later";
