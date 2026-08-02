@@ -32,8 +32,8 @@ xcrun actool "$project_dir/Resources/Assets.xcassets" \
 # A stable signing identity keeps the app's designated requirement unchanged
 # across rebuilds, so accessibility and input-monitoring approvals survive an
 # update. Ad-hoc signatures are cdhash-based and lose them every time.
-if [[ -n "${PRECISION_SIGN_IDENTITY:-}" ]]; then
-  identity="$PRECISION_SIGN_IDENTITY"
+if [[ -n "${ELGOTUNE_SIGN_IDENTITY:-}" ]]; then
+  identity="$ELGOTUNE_SIGN_IDENTITY"
 else
   identity=$(security find-identity -v -p codesigning \
     | awk -F'"' '/Apple Development|Developer ID Application/ {print $2; exit}')
