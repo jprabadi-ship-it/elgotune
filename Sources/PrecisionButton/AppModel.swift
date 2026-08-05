@@ -81,9 +81,16 @@ final class AppModel: ObservableObject {
     private nonisolated(unsafe) var activationObserver: NSObjectProtocol?
     private nonisolated(unsafe) var wakeObserver: NSObjectProtocol?
     private var healthTimer: Timer?
+    /// The permission APIs cost 100 ms or more on macOS 27, so they are never
+    /// called on the thread that has to stay responsive.
+    private let permissionQueue = DispatchQueue(label: "com.elgotune.permissions", qos: .utility)
+    private var permissionCheckInFlight = false
+    private var lastPermissionCheck = Date.distantPast
 
     private static let directionalCooldownMilliseconds: Double = 350
     private static let healthCheckSeconds: Double = 5
+    /// How often the slow permission APIs may be polled in the background.
+    private static let permissionPollSeconds: Double = 30
 
     var statusText: String {
         guard !devices.isEmpty else { return L("Logitechデバイスを待機中…") }
@@ -218,8 +225,17 @@ final class AppModel: ObservableObject {
 
         hid.onDevicesChanged = { [weak self] devices in
             Task { @MainActor in
-                self?.devices = devices
-                self?.applyPointerSettings()
+                guard let self else { return }
+                let previous = self.availableSources
+                self.devices = devices
+                self.applyPointerSettings()
+                // Recorded so a missing button in the picker is diagnosable.
+                if self.availableSources != previous, !self.availableSources.isEmpty {
+                    self.appendLog(L(
+                        "設定できるボタン: %@",
+                        self.availableSources.map(\.displayName).joined(separator: "、")
+                    ))
+                }
             }
         }
         hid.onLog = { [weak self] line in
@@ -268,7 +284,10 @@ final class AppModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.refreshPermissions() }
+            MainActor.assumeIsolated {
+                self?.mouse.setOwnWindowFrames(self?.ownWindowFrames() ?? [])
+                self?.refreshPermissions(force: true)
+            }
         }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
@@ -276,12 +295,12 @@ final class AppModel: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.refreshPermissions()
+                self?.refreshPermissions(force: true)
                 self?.rescan()
             }
         }
         let healthTimer = Timer(timeInterval: Self.healthCheckSeconds, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refreshPermissions() }
+            Task { @MainActor in self?.checkHealth() }
         }
         self.healthTimer = healthTimer
         RunLoop.main.add(healthTimer, forMode: .common)
@@ -372,18 +391,61 @@ final class AppModel: ObservableObject {
         _ = AXIsProcessTrustedWithOptions(options)
         _ = CGRequestPostEventAccess()
         _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+        refreshPermissions(force: true)
+    }
+
+    /// Cheap upkeep: safe to run on the main thread every few seconds.
+    private func checkHealth() {
+        mouse.ensureRunning()
+        mouse.setOwnWindowFrames(ownWindowFrames())
         refreshPermissions()
     }
 
-    func refreshPermissions() {
+    /// Frames of our own windows in CG coordinates, so the event tap can test
+    /// them without asking the window server on every click.
+    private func ownWindowFrames() -> [CGRect] {
+        guard let primary = NSScreen.screens.first else { return [] }
+        return NSApplication.shared.windows.filter(\.isVisible).map { window in
+            let frame = window.frame
+            return CGRect(
+                x: frame.minX,
+                y: primary.frame.maxY - frame.maxY,
+                width: frame.width,
+                height: frame.height
+            )
+        }
+    }
+
+    func refreshPermissions(force: Bool = false) {
+        guard !permissionCheckInFlight else { return }
+        guard force || Date().timeIntervalSince(lastPermissionCheck) >= Self.permissionPollSeconds else { return }
+        permissionCheckInFlight = true
+        lastPermissionCheck = Date()
+
+        permissionQueue.async { [weak self] in
+            let accessibility = AXIsProcessTrusted()
+            let eventPosting = CGPreflightPostEventAccess()
+            let inputMonitoring = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+            Task { @MainActor in
+                self?.applyPermissionState(
+                    accessibility: accessibility,
+                    eventPosting: eventPosting,
+                    inputMonitoring: inputMonitoring
+                )
+            }
+        }
+    }
+
+    private func applyPermissionState(accessibility: Bool, eventPosting: Bool, inputMonitoring: Bool) {
+        permissionCheckInFlight = false
         // The user may have approved the login item in System Settings.
         if launchAtLogin != LoginItem.isEnabled { launchAtLogin = LoginItem.isEnabled }
 
         let wasInputMonitoringGranted = inputMonitoringGranted
         let wasEffective = effectiveEnabled
-        accessibilityGranted = AXIsProcessTrusted()
-        eventPostingGranted = CGPreflightPostEventAccess()
-        inputMonitoringGranted = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+        accessibilityGranted = accessibility
+        eventPostingGranted = eventPosting
+        inputMonitoringGranted = inputMonitoring
 
         // Re-applying unconditionally would fill the log with the same line
         // every few seconds, so only act when something actually changed.
@@ -391,7 +453,7 @@ final class AppModel: ObservableObject {
             hid.setDiversionEnabled(effectiveEnabled)
             updateMouseCapture()
         }
-        if inputMonitoringGranted, !wasInputMonitoringGranted {
+        if inputMonitoring, !wasInputMonitoringGranted {
             // The devices could not be opened before the permission arrived.
             appendLog(L("入力監視が許可されました。デバイスを再スキャンします"))
             hid.rescan()

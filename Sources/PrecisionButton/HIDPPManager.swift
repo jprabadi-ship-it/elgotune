@@ -403,7 +403,10 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
                 if control.isDivertable, shouldDivert(source, on: state) {
                     setDiversion(connection: connection, deviceIndex: packet.deviceIndex, featureIndex: state.buttonFeatureIndex, controlID: cid, enabled: true)
                 }
-                if source == .precision { publishDevices() }
+                // Publish on every control: the UI builds its button list from
+                // this snapshot, and the tilts arrive after the precision
+                // button, so publishing only for that one hid them.
+                publishDevices()
             } else {
                 // Unmapped controls are logged so a button we do not know yet
                 // can be identified from its CID.

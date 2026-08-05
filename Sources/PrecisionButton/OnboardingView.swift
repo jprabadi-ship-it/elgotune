@@ -108,7 +108,7 @@ struct OnboardingView: View {
         }
         .padding(28)
         .frame(width: 520)
-        .onReceive(refresh) { _ in model.refreshPermissions() }
+        .onReceive(refresh) { _ in model.refreshPermissions(force: true) }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             model.refreshPermissions()
         }

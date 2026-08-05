@@ -10,12 +10,23 @@ final class MouseButtonMonitor: @unchecked Sendable {
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    private var tapThread: Thread?
+    /// Frames of our own windows, in CG (top-left origin) coordinates. Cached
+    /// because asking the window server costs ~11 ms — far too long to spend
+    /// inside an event tap callback.
+    private var ownWindowFrames: [CGRect] = []
     private let lock = NSLock()
     private var capturedSources: Set<ButtonSource> = []
     private var activeSources: Set<ButtonSource> = []
     private var scrollSettings = ScrollSettings()
     /// Avoids repeating the same failure every time the health check runs.
     private var didReportTapFailure = false
+
+    func setOwnWindowFrames(_ frames: [CGRect]) {
+        lock.lock()
+        ownWindowFrames = frames
+        lock.unlock()
+    }
 
     func setScrollSettings(_ settings: ScrollSettings) {
         lock.lock()
@@ -68,8 +79,21 @@ final class MouseButtonMonitor: @unchecked Sendable {
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         eventTap = tap
         runLoopSource = source
-        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
+
+        // A dedicated thread keeps input independent of the main run loop.
+        // On the main loop, any hitch — SwiftUI work, a slow permission check —
+        // delays every event and can make macOS disable the tap outright.
+        let thread = Thread {
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
+            CGEvent.tapEnable(tap: tap, enable: true)
+            while !Thread.current.isCancelled {
+                CFRunLoopRunInMode(.defaultMode, 10, false)
+            }
+        }
+        thread.name = "com.elgotune.eventtap"
+        thread.qualityOfService = .userInteractive
+        tapThread = thread
+        thread.start()
         onLog?(L("左右クリックの監視を開始"))
     }
 
@@ -190,18 +214,10 @@ final class MouseButtonMonitor: @unchecked Sendable {
     }
 
     private func isInsideOwnWindow(_ point: CGPoint) -> Bool {
-        guard let windows = CGWindowListCopyWindowInfo(
-            [.optionOnScreenOnly, .excludeDesktopElements],
-            CGWindowID(kCGNullWindowID)
-        ) as? [[String: Any]] else { return false }
-
-        let ownPID = getpid()
-        return windows.contains { window in
-            guard (window[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == ownPID,
-                  let bounds = window[kCGWindowBounds as String] as? NSDictionary,
-                  let rect = CGRect(dictionaryRepresentation: bounds as CFDictionary) else { return false }
-            return rect.contains(point)
-        }
+        lock.lock()
+        let frames = ownWindowFrames
+        lock.unlock()
+        return frames.contains { $0.contains(point) }
     }
 }
 
