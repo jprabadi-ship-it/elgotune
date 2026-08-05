@@ -337,16 +337,48 @@ enum ActionPerformer {
         Int32(max(Double(Int32.min), min(Double(Int32.max), value.rounded())))
     }
 
+    /// Created once: building a source costs a fraction of a millisecond, but
+    /// this runs on the press-to-action path where every allocation shows.
+    private nonisolated(unsafe) static let keyboardSource: CGEventSource? = {
+        let source = CGEventSource(stateID: .hidSystemState)
+        source?.localEventsSuppressionInterval = 0
+        return source
+    }()
+
+    /// Building a CGEvent costs about 3.7 ms on macOS 27 — over 100 ms at the
+    /// worst — so a shortcut with a modifier would spend tens of milliseconds
+    /// just allocating. The events are built once per key and reused; only
+    /// their flags change between presses.
+    private nonisolated(unsafe) static var keyEventCache: [CGKeyCode: (down: CGEvent, up: CGEvent)] = [:]
+    private static let keyEventCacheLock = NSLock()
+
+    private static func keyEvents(for keyCode: CGKeyCode) -> (down: CGEvent, up: CGEvent)? {
+        keyEventCacheLock.lock()
+        defer { keyEventCacheLock.unlock() }
+        if let cached = keyEventCache[keyCode] { return cached }
+        guard let source = keyboardSource,
+              let down = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
+              let up = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false) else { return nil }
+        down.setIntegerValueField(.eventSourceUserData, value: SyntheticEvent.marker)
+        up.setIntegerValueField(.eventSourceUserData, value: SyntheticEvent.marker)
+        let events = (down: down, up: up)
+        keyEventCache[keyCode] = events
+        return events
+    }
+
+    /// Builds the events an assignment will need, so the first press after
+    /// launch is as quick as the rest.
+    static func warmUp(keyCodes: Set<CGKeyCode>) {
+        for keyCode in keyCodes.union([59, 58, 56, 55]) { _ = keyEvents(for: keyCode) }
+    }
+
     private static func keyPress(keyCode: CGKeyCode, flags: CGEventFlags) -> String {
         // This app acts like a user-space input driver: it translates a mouse
         // control into keyboard input, so inject the result at the HID entry.
-        guard let source = CGEventSource(stateID: .hidSystemState),
-              let down = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
-              let up = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false) else {
+        guard let events = keyEvents(for: keyCode) else {
             return L("キーイベント生成失敗 (code=%@)", keyCode)
         }
-
-        source.localEventsSuppressionInterval = 0
+        let (down, up) = events
 
         let effectiveFlags = keyboardFlags(for: keyCode, modifiers: flags)
 
@@ -359,25 +391,21 @@ enum ActionPerformer {
         var activeFlags: CGEventFlags = []
         for (flag, modifierKey) in modifierKeys {
             activeFlags.insert(flag)
-            guard let modifierDown = CGEvent(keyboardEventSource: source, virtualKey: modifierKey, keyDown: true) else { continue }
-            modifierDown.flags = activeFlags
-            modifierDown.setIntegerValueField(.eventSourceUserData, value: SyntheticEvent.marker)
-            modifierDown.post(tap: .cghidEventTap)
+            guard let modifier = keyEvents(for: modifierKey) else { continue }
+            modifier.down.flags = activeFlags
+            modifier.down.post(tap: .cghidEventTap)
         }
 
         down.flags = effectiveFlags
         up.flags = effectiveFlags
-        down.setIntegerValueField(.eventSourceUserData, value: SyntheticEvent.marker)
-        up.setIntegerValueField(.eventSourceUserData, value: SyntheticEvent.marker)
         down.post(tap: .cghidEventTap)
         up.post(tap: .cghidEventTap)
 
         for (flag, modifierKey) in modifierKeys.reversed() {
             activeFlags.remove(flag)
-            guard let modifierUp = CGEvent(keyboardEventSource: source, virtualKey: modifierKey, keyDown: false) else { continue }
-            modifierUp.flags = activeFlags
-            modifierUp.setIntegerValueField(.eventSourceUserData, value: SyntheticEvent.marker)
-            modifierUp.post(tap: .cghidEventTap)
+            guard let modifier = keyEvents(for: modifierKey) else { continue }
+            modifier.up.flags = activeFlags
+            modifier.up.post(tap: .cghidEventTap)
         }
 
         return String(format: L("キー送信: code=%u flags=0x%llx tap=HID"), keyCode, effectiveFlags.rawValue)

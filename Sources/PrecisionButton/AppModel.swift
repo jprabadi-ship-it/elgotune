@@ -46,6 +46,7 @@ final class AppModel: ObservableObject {
         }
     }
     @Published private(set) var devices: [LogitechDevice] = []
+    private var pointerAppliedDeviceIDs: Set<String> = []
     @Published private(set) var logLines: [String] = []
     @Published private(set) var lastPress: Date?
     @Published private(set) var heldSources: Set<ButtonSource> = []
@@ -228,7 +229,14 @@ final class AppModel: ObservableObject {
                 guard let self else { return }
                 let previous = self.availableSources
                 self.devices = devices
-                self.applyPointerSettings()
+                // Walking every HID service costs milliseconds, and this now
+                // fires for each control discovered, so only apply when the
+                // set of devices actually changed.
+                let ids = Set(devices.map(\.id))
+                if ids != self.pointerAppliedDeviceIDs {
+                    self.pointerAppliedDeviceIDs = ids
+                    self.applyPointerSettings()
+                }
                 // Recorded so a missing button in the picker is diagnosable.
                 if self.availableSources != previous, !self.availableSources.isEmpty {
                     self.appendLog(L(
@@ -259,6 +267,7 @@ final class AppModel: ObservableObject {
         mouse.onLog = { [weak self] line in
             Task { @MainActor in self?.appendLog(line) }
         }
+        warmUpKeyEvents()
         hid.start(diversionEnabled: effectiveEnabled)
         mouse.start()
         mouse.setScrollSettings(scrollSettings)
@@ -810,13 +819,22 @@ final class AppModel: ObservableObject {
         triggeredDirectionalSources.removeAll()
     }
 
-    private func appendLog(_ line: String) {
+    /// Reused: building a DateFormatter per line is wasteful on a path that
+    /// runs several times per button press.
+    private static let logTimeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
-        let entry = "\(formatter.string(from: Date()))  \(line)"
+        return formatter
+    }()
+
+    private static let logQueue = DispatchQueue(label: "com.elgotune.log", qos: .utility)
+
+    private func appendLog(_ line: String) {
+        let entry = "\(Self.logTimeFormatter.string(from: Date()))  \(line)"
         logLines.append(entry)
         if logLines.count > 80 { logLines.removeFirst(logLines.count - 80) }
-        Self.writeToLogFile(entry)
+        // Writing here would block the button press for up to 12 ms per line.
+        Self.logQueue.async { Self.writeToLogFile(entry) }
     }
 
     /// Mirrors the in-window log to ~/Library/Logs so device detection can be
@@ -839,6 +857,19 @@ final class AppModel: ObservableObject {
             )
             try? data.write(to: url)
         }
+    }
+
+    /// Pre-builds the CGEvents the current assignments need. On macOS 27 the
+    /// first build of each key costs milliseconds, and that would land on the
+    /// very first press.
+    private func warmUpKeyEvents() {
+        var keyCodes: Set<CGKeyCode> = [126, 125, 103, 36, 51]
+        for mapping in mappings.values {
+            for action in [mapping.shortPress, mapping.longPress] + Array(mapping.directionalActions.values) {
+                if case .shortcut(let shortcut) = action { keyCodes.insert(CGKeyCode(shortcut.keyCode)) }
+            }
+        }
+        ActionPerformer.warmUp(keyCodes: keyCodes)
     }
 
     private func saveMappings() {
