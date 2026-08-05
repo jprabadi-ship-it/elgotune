@@ -213,3 +213,5 @@
 "あとで" = "Later";
 "権限の設定ガイドを開く…" = "Open Permission Guide…";
 "終了時にデバイスを標準状態へ戻しました" = "Restored the device to its default state on quit";
+"イベント監視が停止していたため再開しました" = "Event monitoring had stopped and was restarted";
+"入力監視が許可されました。デバイスを再スキャンします" = "Input Monitoring granted — rescanning devices";

@@ -78,8 +78,12 @@ final class AppModel: ObservableObject {
     private var wheelIdleWorkItem: DispatchWorkItem?
     private nonisolated(unsafe) var frontmostAppObserver: NSObjectProtocol?
     private nonisolated(unsafe) var terminationObserver: NSObjectProtocol?
+    private nonisolated(unsafe) var activationObserver: NSObjectProtocol?
+    private nonisolated(unsafe) var wakeObserver: NSObjectProtocol?
+    private var healthTimer: Timer?
 
     private static let directionalCooldownMilliseconds: Double = 350
+    private static let healthCheckSeconds: Double = 5
 
     var statusText: String {
         guard !devices.isEmpty else { return L("Logitechデバイスを待機中…") }
@@ -256,6 +260,32 @@ final class AppModel: ObservableObject {
             MainActor.assumeIsolated { self?.restoreDeviceState() }
         }
 
+        // Permissions and the event tap have to recover without the settings
+        // window: a launch during login can see permissions as missing, and a
+        // tap can be torn down while the app sits in the menu bar.
+        activationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshPermissions() }
+        }
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.refreshPermissions()
+                self?.rescan()
+            }
+        }
+        let healthTimer = Timer(timeInterval: Self.healthCheckSeconds, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refreshPermissions() }
+        }
+        self.healthTimer = healthTimer
+        RunLoop.main.add(healthTimer, forMode: .common)
+
         frontmostAppObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
@@ -272,6 +302,12 @@ final class AppModel: ObservableObject {
         }
         if let terminationObserver {
             NotificationCenter.default.removeObserver(terminationObserver)
+        }
+        if let activationObserver {
+            NotificationCenter.default.removeObserver(activationObserver)
+        }
+        if let wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
         }
     }
 
@@ -342,11 +378,25 @@ final class AppModel: ObservableObject {
     func refreshPermissions() {
         // The user may have approved the login item in System Settings.
         if launchAtLogin != LoginItem.isEnabled { launchAtLogin = LoginItem.isEnabled }
+
+        let wasInputMonitoringGranted = inputMonitoringGranted
+        let wasEffective = effectiveEnabled
         accessibilityGranted = AXIsProcessTrusted()
         eventPostingGranted = CGPreflightPostEventAccess()
         inputMonitoringGranted = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
-        hid.setDiversionEnabled(effectiveEnabled)
-        mouse.start()
+
+        // Re-applying unconditionally would fill the log with the same line
+        // every few seconds, so only act when something actually changed.
+        if effectiveEnabled != wasEffective {
+            hid.setDiversionEnabled(effectiveEnabled)
+            updateMouseCapture()
+        }
+        if inputMonitoringGranted, !wasInputMonitoringGranted {
+            // The devices could not be opened before the permission arrived.
+            appendLog(L("入力監視が許可されました。デバイスを再スキャンします"))
+            hid.rescan()
+        }
+        mouse.ensureRunning()
     }
 
     func rescan() {

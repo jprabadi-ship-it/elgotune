@@ -14,11 +14,25 @@ final class MouseButtonMonitor: @unchecked Sendable {
     private var capturedSources: Set<ButtonSource> = []
     private var activeSources: Set<ButtonSource> = []
     private var scrollSettings = ScrollSettings()
+    /// Avoids repeating the same failure every time the health check runs.
+    private var didReportTapFailure = false
 
     func setScrollSettings(_ settings: ScrollSettings) {
         lock.lock()
         scrollSettings = settings
         lock.unlock()
+    }
+
+    /// Called periodically as well as on wake: recreates a tap that never got
+    /// created, and re-enables one macOS disabled while we were not looking.
+    func ensureRunning() {
+        if let eventTap {
+            guard !CGEvent.tapIsEnabled(tap: eventTap) else { return }
+            CGEvent.tapEnable(tap: eventTap, enable: true)
+            onLog?(L("イベント監視が停止していたため再開しました"))
+            return
+        }
+        start()
     }
 
     func start() {
@@ -43,9 +57,13 @@ final class MouseButtonMonitor: @unchecked Sendable {
             callback: mouseEventCallback,
             userInfo: context
         ) else {
-            onLog?(L("左右クリックの監視にはアクセシビリティ権限が必要です"))
+            if !didReportTapFailure {
+                didReportTapFailure = true
+                onLog?(L("左右クリックの監視にはアクセシビリティ権限が必要です"))
+            }
             return
         }
+        didReportTapFailure = false
 
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         eventTap = tap
