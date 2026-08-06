@@ -839,11 +839,12 @@ final class AppModel: ObservableObject {
 
     /// Mirrors the in-window log to ~/Library/Logs so device detection can be
     /// inspected after the fact.
-    static let logFileURL = FileManager.default
+    nonisolated static let logFileURL = FileManager.default
         .homeDirectoryForCurrentUser
         .appending(path: "Library/Logs/Elgotune.log")
 
-    private static func writeToLogFile(_ entry: String) {
+    // Runs on the log queue, never on the main actor.
+    private nonisolated static func writeToLogFile(_ entry: String) {
         guard let data = (entry + "\n").data(using: .utf8) else { return }
         let url = logFileURL
         if let handle = try? FileHandle(forWritingTo: url) {
