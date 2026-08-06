@@ -28,7 +28,7 @@
       <a class="button" href="#download">Download free</a>
       <a class="button secondary" href="#features">What it does</a>
     </div>
-    <p class="note" style="margin-top:20px">macOS 14 or later · Apple Silicon and Intel · English and Japanese</p>
+    <p class="note" style="margin-top:20px">macOS 14 or later (tested on macOS 27) · Apple Silicon and Intel · English and Japanese</p>
   </div>
 </header>
 
@@ -126,7 +126,22 @@
       <a class="button secondary" href="https://github.com/jprabadi-ship-it/elgotune">Source on GitHub</a>
     </div>
     <p class="note" style="margin-top:20px">
-      Notarized by Apple, so it opens without warnings. Not on the Mac App Store: its sandbox rules make button and pointer control impossible.
+      <strong>The first launch needs a right-click and “Open”</strong> in Finder: the build is not notarized, so a double-click reports that the developer cannot be verified. Not on the Mac App Store either — its sandbox rules make button and pointer control impossible.
+    </p>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <ol>
+      <li>Open the DMG and drag Elgotune to Applications</li>
+      <li><strong>The first time, right-click Elgotune in Finder and choose “Open”</strong>, then confirm</li>
+      <li>Follow the on-screen guide to grant Accessibility, Input Monitoring and event posting</li>
+    </ol>
+    <p class="note">
+      Step 2 is needed because the build is not notarized. Notarization requires an Apple
+      Developer Program membership ($99 a year), which a free app does not fund.
     </p>
   </div>
 </section>

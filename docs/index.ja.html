@@ -28,7 +28,7 @@
       <a class="button" href="#download">無料でダウンロード</a>
       <a class="button secondary" href="#features">できること</a>
     </div>
-    <p class="note" style="margin-top:20px">macOS 14 以降 / Apple Silicon・Intel 対応 / 日本語・英語</p>
+    <p class="note" style="margin-top:20px">macOS 14 以降（macOS 27 で動作確認済み）/ Apple Silicon・Intel 対応 / 日本語・英語</p>
   </div>
 </header>
 
@@ -126,7 +126,22 @@
       <a class="button secondary" href="https://github.com/jprabadi-ship-it/elgotune">ソースコード（GitHub）</a>
     </div>
     <p class="note" style="margin-top:20px">
-      Apple の公証（notarization）済みで、そのまま開けます。Mac App Store では配布していません（App Store の制約上、ボタンやポインタの制御が実装できないためです）。
+      <strong>初回だけ、Finder で右クリック →「開く」</strong>を選んでください。Apple の公証（notarization）を受けていないため、ダブルクリックでは「開発元を確認できません」と表示されます。Mac App Store では配布していません（App Store の制約上、ボタンやポインタの制御が実装できないためです）。
+    </p>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2>インストール</h2>
+    <ol>
+      <li>ダウンロードした DMG を開き、Elgotune を Applications へドラッグ</li>
+      <li><strong>初回だけ、Finder で Elgotune を右クリック →「開く」</strong>を選び、確認ダイアログで「開く」を押す</li>
+      <li>起動後の案内に従って、アクセシビリティ・入力監視・操作送信の3つを許可</li>
+    </ol>
+    <p class="note">
+      手順2が必要なのは、公証を受けていないためです。無料で配布しているアプリのため
+      Apple Developer Program（年 $99）に加入しておらず、公証サービスを利用できません。
     </p>
   </div>
 </section>
