@@ -216,3 +216,5 @@
 "イベント監視が停止していたため再開しました" = "Event monitoring had stopped and was restarted";
 "入力監視が許可されました。デバイスを再スキャンします" = "Input Monitoring granted — rescanning devices";
 "設定できるボタン: %@" = "Configurable buttons: %@";
+"割り当てたキー操作やクリックの送信に使います。システム設定に独立した項目はなく、アクセシビリティを許可すると一緒に有効になります。" = "Used to send the keystrokes and clicks you assign. It has no entry of its own in System Settings — granting Accessibility enables it too.";
+"許可を求める" = "Request";

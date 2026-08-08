@@ -8,15 +8,14 @@ final class AppModel: ObservableObject {
     @Published var isEnabled: Bool {
         didSet {
             UserDefaults.standard.set(isEnabled, forKey: "isEnabled")
-            hid.setDiversionEnabled(effectiveEnabled)
-            updateMouseCapture()
+            syncDiversionState()
             if !isEnabled { resetButtonGesture() }
         }
     }
     @Published var mappings: [ButtonSource: ButtonMapping] {
         didSet {
             saveMappings()
-            updateMouseCapture()
+            syncDiversionState()
         }
     }
     @Published var longPressMilliseconds: Double {
@@ -87,11 +86,15 @@ final class AppModel: ObservableObject {
     private let permissionQueue = DispatchQueue(label: "com.elgotune.permissions", qos: .utility)
     private var permissionCheckInFlight = false
     private var lastPermissionCheck = Date.distantPast
+    private var lastDiversionRefresh = Date.distantPast
 
     private static let directionalCooldownMilliseconds: Double = 350
     private static let healthCheckSeconds: Double = 5
     /// How often the slow permission APIs may be polled in the background.
     private static let permissionPollSeconds: Double = 30
+    /// The diversion flag lives on the trackball and is lost when it sleeps,
+    /// so it is re-sent on this interval even when nothing changed here.
+    private static let diversionRefreshSeconds: Double = 60
 
     var statusText: String {
         guard !devices.isEmpty else { return L("Logitechデバイスを待機中…") }
@@ -135,7 +138,7 @@ final class AppModel: ObservableObject {
     }
 
     var ready: Bool {
-        isEnabled && accessibilityGranted && eventPostingGranted && inputMonitoringGranted && deviceDetected
+        isEnabled && accessibilityGranted && inputMonitoringGranted && deviceDetected
     }
 
     var primaryBattery: LogitechBattery? {
@@ -146,8 +149,12 @@ final class AppModel: ObservableObject {
         devices.compactMap { device in device.battery.map { (device.name, $0) } }
     }
 
+    /// Event posting is deliberately not part of this. It has no entry of its
+    /// own in System Settings — it rides along with Accessibility — and a
+    /// single false reading from it used to disable every button, which looked
+    /// exactly like the app breaking on its own after a while.
     private var effectiveEnabled: Bool {
-        isEnabled && accessibilityGranted && eventPostingGranted && inputMonitoringGranted && !isFrontmostAppExcluded
+        isEnabled && accessibilityGranted && inputMonitoringGranted && !isFrontmostAppExcluded
     }
 
     init() {
@@ -272,7 +279,7 @@ final class AppModel: ObservableObject {
         mouse.start()
         mouse.setScrollSettings(scrollSettings)
         applyPointerSettings()
-        updateMouseCapture()
+        syncDiversionState()
         appendLog(eventPostingGranted ? L("キーボード・マウス操作の送信権限を確認") : L("操作送信権限がありません"))
 
         // Leaving the pointer rescaled, or buttons diverted to an app that is
@@ -305,6 +312,7 @@ final class AppModel: ObservableObject {
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.refreshPermissions(force: true)
+                self?.hid.refreshDiversion()
                 self?.rescan()
             }
         }
@@ -344,7 +352,7 @@ final class AppModel: ObservableObject {
     func restoreDeviceState() {
         stopMomentum()
         CursorFreeze.release()
-        hid.setDiversionEnabled(false)
+        hid.setState(enabled: false, customizedSources: [])
         PointerControl.apply(systemDefaultPointer)
         PointerAcceleration.apply(systemDefaultPointer.systemAcceleration)
         appendLog(L("終了時にデバイスを標準状態へ戻しました"))
@@ -352,8 +360,10 @@ final class AppModel: ObservableObject {
 
     var loginItemStatusText: String { LoginItem.statusText }
 
+    /// The two the app cannot work without. Event posting is reported
+    /// separately because it has no switch of its own to turn on.
     var allPermissionsGranted: Bool {
-        accessibilityGranted && eventPostingGranted && inputMonitoringGranted
+        accessibilityGranted && inputMonitoringGranted
     }
 
     /// Shown on first launch, and again whenever an update drops a permission.
@@ -408,6 +418,10 @@ final class AppModel: ObservableObject {
         mouse.ensureRunning()
         mouse.setOwnWindowFrames(ownWindowFrames())
         refreshPermissions()
+        if Date().timeIntervalSince(lastDiversionRefresh) >= Self.diversionRefreshSeconds {
+            lastDiversionRefresh = Date()
+            hid.refreshDiversion()
+        }
     }
 
     /// Frames of our own windows in CG coordinates, so the event tap can test
@@ -459,8 +473,7 @@ final class AppModel: ObservableObject {
         // Re-applying unconditionally would fill the log with the same line
         // every few seconds, so only act when something actually changed.
         if effectiveEnabled != wasEffective {
-            hid.setDiversionEnabled(effectiveEnabled)
-            updateMouseCapture()
+            syncDiversionState()
         }
         if inputMonitoring, !wasInputMonitoringGranted {
             // The devices could not be opened before the permission arrived.
@@ -557,8 +570,7 @@ final class AppModel: ObservableObject {
         let excluded = Self.isExcluded(bundleIdentifier: bundleIdentifier, in: excludedApps)
         guard excluded != isFrontmostAppExcluded else { return }
         isFrontmostAppExcluded = excluded
-        hid.setDiversionEnabled(effectiveEnabled)
-        updateMouseCapture()
+        syncDiversionState()
         if excluded {
             resetButtonGesture()
             appendLog(L("除外アプリがアクティブなためボタンを標準動作に戻します"))
@@ -879,15 +891,19 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func updateMouseCapture() {
+    /// Single point of truth for "what should be diverted right now".
+    private func syncDiversionState() {
         let customized = Set(ButtonSource.allCases.filter { source in
             guard effectiveEnabled else { return false }
             let value = mapping(for: source)
-            return value.shortPress != source.nativeAction || value.longPress != .none || value.longPressMode != .action
+            return value.shortPress != source.nativeAction
+                || value.longPress != .none
+                || value.longPressMode != .action
         })
         mouse.setCapturedSources(customized.intersection([.left, .right, .middle]))
-        hid.setCustomizedSources(customized)
+        hid.setState(enabled: effectiveEnabled, customizedSources: customized)
     }
+
 }
 
 /// Everything the user configures, in one file for backup or transfer.

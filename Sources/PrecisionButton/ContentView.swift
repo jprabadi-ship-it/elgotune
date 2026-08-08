@@ -114,7 +114,7 @@ struct ContentView: View {
                     permissionLabel(L("操作送信"), granted: model.eventPostingGranted)
                     permissionLabel(L("入力監視"), granted: model.inputMonitoringGranted)
                     Spacer()
-                    if !model.accessibilityGranted || !model.eventPostingGranted || !model.inputMonitoringGranted {
+                    if !model.allPermissionsGranted || !model.eventPostingGranted {
                         Button(L("権限を許可…")) { model.requestPermissions() }
                     }
                     Button(L("再スキャン")) { model.rescan() }

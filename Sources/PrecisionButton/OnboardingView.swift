@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import SwiftUI
 
 /// First-run guide for the three permissions the app cannot work without.
@@ -26,7 +27,7 @@ struct OnboardingView: View {
         var detail: String {
             switch self {
             case .accessibility: L("左右クリックの監視と、押しっぱなしジェスチャーに必要です。")
-            case .eventPosting: L("割り当てたキー操作やクリックを送信するために必要です。")
+            case .eventPosting: L("割り当てたキー操作やクリックの送信に使います。システム設定に独立した項目はなく、アクセシビリティを許可すると一緒に有効になります。")
             case .inputMonitoring: L("トラックボール本体と通信し、ボタンを受け取るために必要です。")
             }
         }
@@ -80,6 +81,9 @@ struct OnboardingView: View {
                         Text(L("許可済み"))
                             .font(.caption)
                             .foregroundStyle(.green)
+                    } else if permission == .eventPosting {
+                        // No switch exists for this one; asking is all we can do.
+                        Button(L("許可を求める")) { _ = CGRequestPostEventAccess() }
                     } else if let url = permission.settingsURL {
                         Button(L("開く")) { NSWorkspace.shared.open(url) }
                     }

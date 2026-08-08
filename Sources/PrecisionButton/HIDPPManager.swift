@@ -124,6 +124,9 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
     private var diversionEnabled = true
     private var customizedSources: Set<ButtonSource> = []
     private var lastPressedEndpoint: EndpointKey?
+    /// What we last told each control to do, so a periodic re-send does not
+    /// fill the log with lines that say nothing changed.
+    private var lastSentDiversion: [UInt16: Bool] = [:]
     private var started = false
 
     func start(diversionEnabled: Bool) {
@@ -149,6 +152,7 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
         pendingRootFeatures.removeAll()
         nameProbes.removeAll()
         identifiedDevices.removeAll()
+        lastSentDiversion.removeAll()
         publishDevices()
         log(L("HID++デバイスを再スキャン"))
         for connection in connections.values where open(connection) {
@@ -156,17 +160,24 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
         }
     }
 
-    func setDiversionEnabled(_ enabled: Bool) {
+    /// Both halves of the decision in one call. Applying them separately meant
+    /// the first pass ran against a stale set of customized sources, which left
+    /// the wheel tilts and Easy-Switch un-diverted whenever the app toggled
+    /// between enabled and disabled.
+    func setState(enabled: Bool, customizedSources sources: Set<ButtonSource>) {
+        let changed = enabled != diversionEnabled || sources != customizedSources
         diversionEnabled = enabled
+        customizedSources = sources
         applyDiversion()
-        log(enabled ? L("ボタンのカスタマイズを有効化") : L("ボタンを標準動作に復帰"))
+        if changed {
+            log(enabled ? L("ボタンのカスタマイズを有効化") : L("ボタンを標準動作に復帰"))
+        }
     }
 
-    /// Sources the user has actually assigned an action to. Only used for
-    /// controls that must stay native until customized (Easy-Switch).
-    func setCustomizedSources(_ sources: Set<ButtonSource>) {
-        guard sources != customizedSources else { return }
-        customizedSources = sources
+    /// Re-sends the current diversion to every device. The flag lives on the
+    /// device and is lost when it sleeps or re-connects, so it has to be
+    /// refreshed even when nothing on our side changed.
+    func refreshDiversion() {
         applyDiversion()
     }
 
@@ -560,10 +571,13 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
     }
 
     private func setDiversion(connection: HIDConnection, deviceIndex: UInt8, featureIndex: UInt8, controlID: UInt16, enabled: Bool) {
+        let isRepeat = lastSentDiversion[controlID] == enabled
+        lastSentDiversion[controlID] = enabled
         // Byte 2: dvalid (bit 1) + divert (bit 0).
         let flags: UInt8 = enabled ? 0x03 : 0x02
         let parameters: [UInt8] = [UInt8(controlID >> 8), UInt8(controlID & 0xFF), flags, 0, 0]
         send(connection, HIDPPPacket.request(deviceIndex: deviceIndex, featureIndex: featureIndex, function: 3, parameters: parameters))
+        guard !isRepeat else { return }
         let name = sourceForControl(controlID)?.displayName ?? L("ボタン")
         log(enabled ? L("%@をアプリへ転送", name) : L("%@の転送を解除", name))
     }
