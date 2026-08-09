@@ -103,13 +103,16 @@
 <section id="requirements">
   <div class="wrap">
     <h2>Requirements and permissions</h2>
-    <p class="lede">Three macOS permissions are needed to control a trackball. A guide walks you through them on first launch.</p>
+    <p class="lede">macOS permissions are needed to control a trackball. A guide walks you through them on first launch.</p>
     <table>
-      <tr><th>Permission</th><th>Purpose</th></tr>
-      <tr><td>Accessibility</td><td>Observing left and right clicks, detecting press-and-hold gestures</td></tr>
-      <tr><td>Event posting</td><td>Performing the keystrokes and clicks you assign</td></tr>
-      <tr><td>Input Monitoring</td><td>Communicating with the trackball and receiving its buttons</td></tr>
+      <tr><th>Permission</th><th>Purpose</th><th></th></tr>
+      <tr><td>Accessibility</td><td>Observing left and right clicks, detecting press-and-hold gestures</td><td>Required</td></tr>
+      <tr><td>Input Monitoring</td><td>Communicating with the trackball and receiving its buttons</td><td>Required</td></tr>
+      <tr><td>Event posting</td><td>Performing the keystrokes and clicks you assign</td><td>Comes along</td></tr>
     </table>
+    <p class="note" style="margin-top:12px">
+      Event posting has no entry of its own in System Settings; granting Accessibility enables it too.
+    </p>
     <p class="note" style="margin-top:20px">
       Elgotune makes no network connections and never records keystrokes. See the <a href="privacy.en.html">privacy policy</a> for details.
     </p>
@@ -137,7 +140,7 @@
     <ol>
       <li>Open the DMG and drag Elgotune to Applications</li>
       <li><strong>The first time, right-click Elgotune in Finder and choose “Open”</strong>, then confirm</li>
-      <li>Follow the on-screen guide to grant Accessibility, Input Monitoring and event posting</li>
+      <li>Follow the on-screen guide to grant Accessibility and Input Monitoring</li>
     </ol>
     <p class="note">
       Step 2 is needed because the build is not notarized. Notarization requires an Apple
