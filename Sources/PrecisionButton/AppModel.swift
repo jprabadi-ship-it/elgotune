@@ -87,6 +87,7 @@ final class AppModel: ObservableObject {
     private var permissionCheckInFlight = false
     private var lastPermissionCheck = Date.distantPast
     private var lastDiversionRefresh = Date.distantPast
+    private var lastRescan = Date.distantPast
 
     private static let directionalCooldownMilliseconds: Double = 350
     private static let healthCheckSeconds: Double = 5
@@ -95,6 +96,11 @@ final class AppModel: ObservableObject {
     /// The diversion flag lives on the trackball and is lost when it sleeps,
     /// so it is re-sent on this interval even when nothing changed here.
     private static let diversionRefreshSeconds: Double = 60
+    /// Re-sending is not enough once a connection has gone stale — coming back
+    /// from a long idle needs the full re-probe the Rescan button performs.
+    private static let rescanIntervalSeconds: Double = 300
+    /// A rescan triggered by a lost-diversion signal may not repeat faster.
+    private static let rescanCooldownSeconds: Double = 20
 
     var statusText: String {
         guard !devices.isEmpty else { return L("Logitechデバイスを待機中…") }
@@ -265,6 +271,16 @@ final class AppModel: ObservableObject {
         mouse.onButton = { [weak self] source, pressed in
             Task { @MainActor in self?.handleButtonState(source: source, pressed: pressed) }
         }
+        mouse.onLostDiversion = { [weak self] in
+            Task { @MainActor in
+                guard let self, self.effectiveEnabled else { return }
+                // Only worth saying once per recovery; the cooldown does the rest.
+                if Date().timeIntervalSince(self.lastRescan) >= Self.rescanCooldownSeconds {
+                    self.appendLog(L("転送設定が失われていたため再スキャンします"))
+                }
+                self.rescanIfDue()
+            }
+        }
         mouse.onWheel = { [weak self] deltaY, deltaX in
             Task { @MainActor in self?.handleWheel(deltaY: deltaY, deltaX: deltaX) }
         }
@@ -422,6 +438,17 @@ final class AppModel: ObservableObject {
             lastDiversionRefresh = Date()
             hid.refreshDiversion()
         }
+        if Date().timeIntervalSince(lastRescan) >= Self.rescanIntervalSeconds {
+            rescanIfDue()
+        }
+    }
+
+    /// The work behind the Rescan button, on a timer and after a lost-diversion
+    /// signal. Re-probing rebuilds connections that went stale while idle.
+    private func rescanIfDue() {
+        guard Date().timeIntervalSince(lastRescan) >= Self.rescanCooldownSeconds else { return }
+        lastRescan = Date()
+        hid.rescan()
     }
 
     /// Frames of our own windows in CG coordinates, so the event tap can test
@@ -484,6 +511,7 @@ final class AppModel: ObservableObject {
     }
 
     func rescan() {
+        lastRescan = Date()
         hid.rescan()
     }
 
@@ -891,6 +919,16 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Buttons the HID++ side should be holding right now. Left and right are
+    /// excluded: they are never divertable, so seeing them is not a signal.
+    private func diversionCandidates(customized: Set<ButtonSource>) -> Set<ButtonSource> {
+        var sources: Set<ButtonSource> = [.middle, .back, .forward]
+        for source in [ButtonSource.tiltLeft, .tiltRight] where customized.contains(source) {
+            sources.insert(source)
+        }
+        return sources.intersection(Set(availableSources))
+    }
+
     /// Single point of truth for "what should be diverted right now".
     private func syncDiversionState() {
         let customized = Set(ButtonSource.allCases.filter { source in
@@ -901,6 +939,7 @@ final class AppModel: ObservableObject {
                 || value.longPressMode != .action
         })
         mouse.setCapturedSources(customized.intersection([.left, .right, .middle]))
+        mouse.setDivertedSources(effectiveEnabled ? diversionCandidates(customized: customized) : [])
         hid.setState(enabled: effectiveEnabled, customizedSources: customized)
     }
 

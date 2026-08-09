@@ -6,6 +6,9 @@ final class MouseButtonMonitor: @unchecked Sendable {
     var onMotion: ((ButtonSource, Double, Double) -> Void)?
     /// Scaled wheel movement, so momentum can be built from what apps saw.
     var onWheel: ((Double, Double) -> Void)?
+    /// A button we believe is diverted over HID++ arrived here as a plain
+    /// system event, which means the device forgot the diversion.
+    var onLostDiversion: (() -> Void)?
     var onLog: ((String) -> Void)?
 
     private var eventTap: CFMachPort?
@@ -19,12 +22,21 @@ final class MouseButtonMonitor: @unchecked Sendable {
     private var capturedSources: Set<ButtonSource> = []
     private var activeSources: Set<ButtonSource> = []
     private var scrollSettings = ScrollSettings()
+    /// Buttons currently diverted over HID++. Seeing one of these as a native
+    /// event is proof that the device dropped our setting.
+    private var divertedSources: Set<ButtonSource> = []
     /// Avoids repeating the same failure every time the health check runs.
     private var didReportTapFailure = false
 
     func setOwnWindowFrames(_ frames: [CGRect]) {
         lock.lock()
         ownWindowFrames = frames
+        lock.unlock()
+    }
+
+    func setDivertedSources(_ sources: Set<ButtonSource>) {
+        lock.lock()
+        divertedSources = sources
         lock.unlock()
     }
 
@@ -126,7 +138,11 @@ final class MouseButtonMonitor: @unchecked Sendable {
         if type == .scrollWheel {
             lock.lock()
             let settings = scrollSettings
+            let tiltDiverted = divertedSources.contains(.tiltLeft) || divertedSources.contains(.tiltRight)
             lock.unlock()
+            if tiltDiverted, event.getDoubleValueField(.scrollWheelEventDeltaAxis2) != 0 {
+                onLostDiversion?()
+            }
             return scaleWheel(event, with: settings)
         }
 
@@ -155,7 +171,14 @@ final class MouseButtonMonitor: @unchecked Sendable {
         case .otherMouseDown, .otherMouseUp:
             // Button number 2 is the middle button; 3/4 are back/forward and
             // are handled through HID++ diversion instead.
-            guard event.getIntegerValueField(.mouseEventButtonNumber) == 2 else {
+            let button = event.getIntegerValueField(.mouseEventButtonNumber)
+            lock.lock()
+            let lostMiddle = button == 2 && divertedSources.contains(.middle)
+            let lostSide = (button == 3 && divertedSources.contains(.back))
+                || (button == 4 && divertedSources.contains(.forward))
+            lock.unlock()
+            if lostMiddle || lostSide { onLostDiversion?() }
+            guard button == 2 else {
                 return Unmanaged.passUnretained(event)
             }
             source = .middle; pressed = type == .otherMouseDown

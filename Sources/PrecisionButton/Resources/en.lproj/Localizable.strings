@@ -218,3 +218,4 @@
 "設定できるボタン: %@" = "Configurable buttons: %@";
 "割り当てたキー操作やクリックの送信に使います。システム設定に独立した項目はなく、アクセシビリティを許可すると一緒に有効になります。" = "Used to send the keystrokes and clicks you assign. It has no entry of its own in System Settings — granting Accessibility enables it too.";
 "許可を求める" = "Request";
+"転送設定が失われていたため再スキャンします" = "The diversion was lost — rescanning";
