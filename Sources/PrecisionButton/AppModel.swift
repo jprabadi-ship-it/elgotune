@@ -26,7 +26,8 @@ final class AppModel: ObservableObject {
             if let data = try? JSONEncoder().encode(pointerSettings) {
                 UserDefaults.standard.set(data, forKey: "pointerSettings")
             }
-            applyPointerSettings()
+            lastAppliedPointer = nil
+            applyPointerSettingsIfChanged()
         }
     }
     @Published var scrollSettings: ScrollSettings {
@@ -45,7 +46,9 @@ final class AppModel: ObservableObject {
         }
     }
     @Published private(set) var devices: [LogitechDevice] = []
-    private var pointerAppliedDeviceIDs: Set<String> = []
+    /// Writing the pointer resolution nudges the cursor, so it is only written
+    /// when the values or the device set actually differ from last time.
+    private var lastAppliedPointer: (settings: PointerSettings, deviceIDs: Set<String>)?
     @Published private(set) var logLines: [String] = []
     @Published private(set) var lastPress: Date?
     @Published private(set) var heldSources: Set<ButtonSource> = []
@@ -242,14 +245,10 @@ final class AppModel: ObservableObject {
                 guard let self else { return }
                 let previous = self.availableSources
                 self.devices = devices
-                // Walking every HID service costs milliseconds, and this now
-                // fires for each control discovered, so only apply when the
-                // set of devices actually changed.
-                let ids = Set(devices.map(\.id))
-                if ids != self.pointerAppliedDeviceIDs {
-                    self.pointerAppliedDeviceIDs = ids
-                    self.applyPointerSettings()
-                }
+                // A rescan empties this list before refilling it. Applying on
+                // that transient would rewrite the pointer resolution twice
+                // every five minutes, and each write jolts the cursor.
+                self.applyPointerSettingsIfChanged()
                 // Recorded so a missing button in the picker is diagnosable.
                 if self.availableSources != previous, !self.availableSources.isEmpty {
                     self.appendLog(L(
@@ -406,8 +405,21 @@ final class AppModel: ObservableObject {
 
     /// Restores the pointer curve macOS had before this app changed it.
     func resetPointerToSystemDefault() {
+        lastAppliedPointer = nil
         pointerSettings = systemDefaultPointer
         appendLog(L("ポインタ設定をシステムデフォルトに戻しました"))
+    }
+
+    /// Skips the write when nothing changed, and while the device list is
+    /// momentarily empty during a rescan.
+    private func applyPointerSettingsIfChanged() {
+        let ids = Set(devices.map(\.id))
+        guard !ids.isEmpty else { return }
+        if let last = lastAppliedPointer, last.settings == pointerSettings, last.deviceIDs == ids {
+            return
+        }
+        lastAppliedPointer = (pointerSettings, ids)
+        applyPointerSettings()
     }
 
     private func applyPointerSettings() {
