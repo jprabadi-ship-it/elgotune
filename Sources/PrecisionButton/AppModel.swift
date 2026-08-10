@@ -366,7 +366,6 @@ final class AppModel: ObservableObject {
     /// buttons. Called on quit.
     func restoreDeviceState() {
         stopMomentum()
-        CursorFreeze.release()
         hid.setState(enabled: false, customizedSources: [])
         PointerControl.apply(systemDefaultPointer)
         PointerAcceleration.apply(systemDefaultPointer.systemAcceleration)
@@ -661,7 +660,6 @@ final class AppModel: ObservableObject {
             startMomentumIfNeeded(for: source)
         }
         if wasLongPress, mapping(for: source).longPressMode == .directions {
-            CursorFreeze.release()
             triggerDirectionalGestureIfNeeded(for: source)
             if !triggeredDirectionalSources.contains(source) {
                 appendLog(L("%@: 方向移動が小さいためキャンセル", source.displayName))
@@ -700,7 +698,8 @@ final class AppModel: ObservableObject {
             ActionPerformer.scroll(deltaX: movement.x, deltaY: movement.y, settings: scrollSettings)
             appendLog(L("%@: スクロールモード開始", source.displayName))
         case .directions:
-            CursorFreeze.freeze()
+            // Nothing to pin: the event tap already drops motion while the
+            // button is held, so the cursor never moves in the first place.
             appendLog(L("%@: 方向ジェスチャー開始（カーソル固定）", source.displayName))
             triggerDirectionalGestureIfNeeded(for: source)
         }
@@ -859,7 +858,6 @@ final class AppModel: ObservableObject {
     }
 
     private func resetButtonGesture() {
-        CursorFreeze.release()
         stopMomentum()
         for workItem in longPressWorkItems.values { workItem.cancel() }
         for workItem in directionalCooldownWorkItems.values { workItem.cancel() }
