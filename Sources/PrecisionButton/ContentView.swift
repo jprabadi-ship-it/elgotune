@@ -165,8 +165,9 @@ struct ContentView: View {
                         .foregroundStyle(.green)
                 }
 
-                if selectedSource == .left || selectedSource == .right || selectedSource == .middle {
-                    Label(L("カスタマイズ中は、そのボタンの通常ドラッグがトラックボール操作へ置き換わります。"), systemImage: "info.circle")
+                if selectedSource == .left || selectedSource == .right || selectedSource == .middle,
+                   mappingBinding(for: selectedSource).wrappedValue.longPressMode != .action {
+                    Label(L("押しっぱなし中は、そのボタンの通常ドラッグがトラックボール操作へ置き換わります。"), systemImage: "info.circle")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

@@ -220,3 +220,4 @@
 "許可を求める" = "Request";
 "転送設定が失われていたため再スキャンします" = "The diversion was lost — rescanning";
 "イベント処理に %@ ms かかりました（種類 %@）" = "Handling an event took %@ ms (type %@)";
+"押しっぱなし中は、そのボタンの通常ドラッグがトラックボール操作へ置き換わります。" = "While the button is held, dragging with it becomes trackball control instead.";
