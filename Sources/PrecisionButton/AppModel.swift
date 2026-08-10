@@ -949,6 +949,9 @@ final class AppModel: ObservableObject {
                 || value.longPressMode != .action
         })
         mouse.setCapturedSources(customized.intersection([.left, .right, .middle]))
+        // Only scroll and direction modes have a use for pointer motion.
+        let motionSources = Set(customized.filter { mapping(for: $0).longPressMode != .action })
+        mouse.setMotionSources(effectiveEnabled ? motionSources : [])
         mouse.setDivertedSources(effectiveEnabled ? diversionCandidates(customized: customized) : [])
         hid.setState(enabled: effectiveEnabled, customizedSources: customized)
     }

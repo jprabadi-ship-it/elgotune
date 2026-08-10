@@ -27,10 +27,33 @@ final class MouseButtonMonitor: @unchecked Sendable {
     private var divertedSources: Set<ButtonSource> = []
     /// Avoids repeating the same failure every time the health check runs.
     private var didReportTapFailure = false
+    /// Cached so the motion path never allocates: ButtonSource.allCases built
+    /// an array for every event, and motion arrives hundreds of times a second.
+    private var activeSource: ButtonSource?
+    /// Only these consume pointer motion. A button mapped to a plain action has
+    /// no use for it, and swallowing motion for one that never sends its
+    /// release leaves the cursor stuttering until something clears the state.
+    private var motionSources: Set<ButtonSource> = []
+    /// When the active button was pressed, so a press whose release never
+    /// arrives cannot eat motion forever.
+    private var activeSince: DispatchTime?
+    private static let stuckPressTimeout: Double = 5
+    /// macOS disables a tap whose callback is too slow, and the events queued
+    /// behind it arrive in a burst — the cursor appears to warp and catch up.
+    /// Anything this slow is worth knowing about.
+    private var slowCallbackReports = 0
+    private static let slowCallbackThreshold: Double = 0.005
 
     func setOwnWindowFrames(_ frames: [CGRect]) {
         lock.lock()
         ownWindowFrames = frames
+        lock.unlock()
+    }
+
+    /// Buttons whose press should take over pointer motion.
+    func setMotionSources(_ sources: Set<ButtonSource>) {
+        lock.lock()
+        motionSources = sources
         lock.unlock()
     }
 
@@ -114,6 +137,7 @@ final class MouseButtonMonitor: @unchecked Sendable {
     func setExternallyHeld(_ source: ButtonSource, held: Bool) {
         lock.lock()
         if held { activeSources.insert(source) } else { activeSources.remove(source) }
+        refreshActiveSourceLocked()
         lock.unlock()
     }
 
@@ -122,11 +146,36 @@ final class MouseButtonMonitor: @unchecked Sendable {
         let released = activeSources.subtracting(sources)
         activeSources.subtract(released)
         capturedSources = sources
+        refreshActiveSourceLocked()
         lock.unlock()
         for source in released { onButton?(source, false) }
     }
 
+    /// Call with the lock held.
+    private func refreshActiveSourceLocked() {
+        let previous = activeSource
+        activeSource = ButtonSource.allCases.first { activeSources.contains($0) }
+        if activeSource != previous {
+            activeSince = activeSource == nil ? nil : DispatchTime.now()
+        }
+    }
+
     fileprivate func process(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        let started = DispatchTime.now().uptimeNanoseconds
+        defer {
+            let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000_000
+            if elapsed >= Self.slowCallbackThreshold {
+                lock.lock()
+                let shouldReport = slowCallbackReports < 20
+                slowCallbackReports += 1
+                lock.unlock()
+                if shouldReport {
+                    onLog?(L("イベント処理に %@ ms かかりました（種類 %@）",
+                             String(format: "%.1f", elapsed * 1000), String(type.rawValue)))
+                }
+            }
+        }
+
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let eventTap { CGEvent.tapEnable(tap: eventTap, enable: true) }
             return Unmanaged.passUnretained(event)
@@ -148,9 +197,20 @@ final class MouseButtonMonitor: @unchecked Sendable {
 
         if type == .mouseMoved || type == .leftMouseDragged || type == .rightMouseDragged || type == .otherMouseDragged {
             lock.lock()
-            let active = ButtonSource.allCases.first(where: { activeSources.contains($0) })
+            var active = activeSource
+            // A press whose release never arrived — the device can drop one
+            // when its diversion changes mid-press — would otherwise keep
+            // eating motion, and the cursor jumps whenever an event slips past.
+            if let since = activeSince,
+               Double(DispatchTime.now().uptimeNanoseconds - since.uptimeNanoseconds) / 1_000_000_000 > Self.stuckPressTimeout {
+                activeSources.removeAll()
+                activeSource = nil
+                activeSince = nil
+                active = nil
+            }
+            let consumesMotion = active.map { motionSources.contains($0) } ?? false
             lock.unlock()
-            guard let active else { return Unmanaged.passUnretained(event) }
+            guard let active, consumesMotion else { return Unmanaged.passUnretained(event) }
             let dx = event.getDoubleValueField(.mouseEventDeltaX)
             let dy = event.getDoubleValueField(.mouseEventDeltaY)
             onMotion?(active, dx, dy)
@@ -199,6 +259,7 @@ final class MouseButtonMonitor: @unchecked Sendable {
 
         lock.lock()
         if pressed { activeSources.insert(source) } else { activeSources.remove(source) }
+        refreshActiveSourceLocked()
         lock.unlock()
         onButton?(source, pressed)
         return nil
