@@ -122,7 +122,12 @@ final class MouseButtonMonitor: @unchecked Sendable {
             CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
             CGEvent.tapEnable(tap: tap, enable: true)
             while !Thread.current.isCancelled {
-                CFRunLoopRunInMode(.defaultMode, 10, false)
+                // A CFRunLoop driven by hand on a secondary thread drains no
+                // autorelease pool of its own. Without these, everything the
+                // callbacks autorelease piles up until the process exits.
+                autoreleasepool {
+                    CFRunLoopRunInMode(.defaultMode, 10, false)
+                }
             }
         }
         thread.name = "com.elgotune.eventtap"
@@ -307,5 +312,10 @@ final class MouseButtonMonitor: @unchecked Sendable {
 
 private let mouseEventCallback: CGEventTapCallBack = { _, type, event, userInfo in
     guard let userInfo else { return Unmanaged.passUnretained(event) }
-    return Unmanaged<MouseButtonMonitor>.fromOpaque(userInfo).takeUnretainedValue().process(type: type, event: event)
+    // The pool has to be here, not just around the run loop: the loop sits
+    // inside CFRunLoopRunInMode for up to ten seconds at a time, and every
+    // event handled in between would accumulate.
+    return autoreleasepool {
+        Unmanaged<MouseButtonMonitor>.fromOpaque(userInfo).takeUnretainedValue().process(type: type, event: event)
+    }
 }
