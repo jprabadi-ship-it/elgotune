@@ -4,9 +4,8 @@ set -euo pipefail
 # Packages the signed app into build/Elgotune-<version>.dmg with the usual
 # drag-to-Applications layout.
 #
-# This is not notarized: notarization needs a Developer ID Application
-# certificate, and only an Apple Development one is available. Use
-# scripts/release.sh instead once the Developer Program membership is in place.
+# For local testing only — the image is not notarized. Use scripts/release.sh
+# to produce the build that gets published.
 
 project_dir="${0:A:h:h}"
 volume_name="Elgotune"

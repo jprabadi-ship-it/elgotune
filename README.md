@@ -58,7 +58,7 @@ open "/tmp/elgotune-stage/Elgotune.app"
 
 `build-app.sh` はキーチェーンの Apple Development / Developer ID 証明書を自動で使って署名します（`ELGOTUNE_SIGN_IDENTITY` で明示指定も可能）。**署名IDが安定していれば、アプリを更新してもアクセシビリティと入力監視の許可が維持されます。** 署名IDがない場合はアドホック署名にフォールバックし、その場合は更新のたびに許可の再登録が必要です。
 
-配布用ビルドは `scripts/release.sh`（Hardened Runtime 付き署名 → DMG → 公証 → ステープル → `spctl` 検証）。Developer ID 証明書と notarytool のプロファイルが必要です。
+配布する DMG は `scripts/release.sh` で作ります（Hardened Runtime 付き署名 → DMG → 公証 → ステープル → `spctl` 検証）。**公開しているビルドは Developer ID 署名と Apple の公証を受けているため、ダウンロード後そのまま起動できます。** 実行には Developer ID 証明書と notarytool のプロファイルが必要です。
 
 ```sh
 xcrun notarytool store-credentials Elgotune \

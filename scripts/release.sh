@@ -14,7 +14,12 @@ project_dir="${0:A:h:h}"
 stage_dir="/tmp/elgotune-release"
 app_dir="$stage_dir/Elgotune.app"
 contents_dir="$app_dir/Contents"
-dmg_path="$stage_dir/Elgotune.dmg"
+version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" \
+  "${0:A:h:h}/Resources/Info.plist")
+# Notarizing and stapling happen on a local disk; the finished image is copied
+# into build/ at the end.
+dmg_path="$stage_dir/Elgotune-$version.dmg"
+dmg_stage="$stage_dir/dmg"
 notary_profile="${ELGOTUNE_NOTARY_PROFILE:-Elgotune}"
 skip_notarize=0
 [[ "${1:-}" == "--skip-notarize" ]] && skip_notarize=1
@@ -58,7 +63,11 @@ codesign --force --deep --options runtime --timestamp \
   --sign "$identity" "$app_dir"
 codesign --verify --strict --verbose=2 "$app_dir"
 
-hdiutil create -volname Elgotune -srcfolder "$app_dir" -ov -format UDZO "$dmg_path" >/dev/null
+# The usual drag-to-Applications layout, matching the install instructions.
+mkdir -p "$dmg_stage"
+cp -R "$app_dir" "$dmg_stage/"
+ln -s /Applications "$dmg_stage/Applications"
+hdiutil create -volname Elgotune -srcfolder "$dmg_stage" -ov -format UDZO "$dmg_path" >/dev/null
 codesign --force --timestamp --sign "$identity" "$dmg_path"
 
 if (( skip_notarize )); then
@@ -73,4 +82,6 @@ xcrun stapler staple "$dmg_path"
 # Proves the download will open on a machine that has never seen this app.
 spctl --assess --type open --context context:primary-signature -v "$dmg_path"
 
-echo "$dmg_path"
+mkdir -p "$project_dir/build"
+cp "$dmg_path" "$project_dir/build/Elgotune-$version.dmg"
+echo "$project_dir/build/Elgotune-$version.dmg"
