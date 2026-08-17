@@ -166,7 +166,23 @@ final class AppModel: ObservableObject {
         isEnabled && accessibilityGranted && inputMonitoringGranted && !isFrontmostAppExcluded
     }
 
+    /// The bundle identifier used to be jp.local.PrecisionButton, and
+    /// UserDefaults.standard is keyed by bundle identifier, so the rename
+    /// would silently reset every setting. Copy the old domain over once,
+    /// before anything reads from the new one.
+    private static func migrateLegacyDefaultsIfNeeded() {
+        let legacyDomain = "jp.local.PrecisionButton"
+        guard Bundle.main.bundleIdentifier != legacyDomain,
+              UserDefaults.standard.object(forKey: "onboardingSeen") == nil,
+              let legacy = UserDefaults.standard.persistentDomain(forName: legacyDomain),
+              !legacy.isEmpty else { return }
+        for (key, value) in legacy {
+            UserDefaults.standard.set(value, forKey: key)
+        }
+    }
+
     init() {
+        Self.migrateLegacyDefaultsIfNeeded()
         self.isEnabled = UserDefaults.standard.object(forKey: "isEnabled") as? Bool ?? true
         let legacyShort: ButtonAction
         if let data = UserDefaults.standard.data(forKey: "buttonAction"),
