@@ -3,9 +3,11 @@
 #
 # Requires an Apple Developer Program membership:
 #   - a "Developer ID Application" certificate in the keychain
-#   - a notarytool keychain profile (one-time setup):
-#       xcrun notarytool store-credentials Elgotune \
-#         --apple-id <apple-id> --team-id <team-id> --password <app-specific-password>
+#   - notarization credentials, either of:
+#       ~/.appstore_env exporting ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_PATH, or
+#       a notarytool keychain profile (one-time setup):
+#         xcrun notarytool store-credentials Elgotune \
+#           --apple-id <apple-id> --team-id <team-id> --password <app-specific-password>
 #
 # Usage: ./scripts/release.sh [--skip-notarize]
 set -euo pipefail
@@ -21,6 +23,14 @@ version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" \
 dmg_path="$stage_dir/Elgotune-$version.dmg"
 dmg_stage="$stage_dir/dmg"
 notary_profile="${ELGOTUNE_NOTARY_PROFILE:-Elgotune}"
+# An App Store Connect API key works for notarization too, and is the one
+# credential already on this machine; fall back to the keychain profile.
+[[ -f ~/.appstore_env ]] && source ~/.appstore_env
+if [[ -n "${ASC_KEY_ID:-}" && -n "${ASC_ISSUER_ID:-}" && -n "${ASC_KEY_PATH:-}" ]]; then
+  notary_args=(--key "$ASC_KEY_PATH" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID")
+else
+  notary_args=(--keychain-profile "$notary_profile")
+fi
 skip_notarize=0
 [[ "${1:-}" == "--skip-notarize" ]] && skip_notarize=1
 
@@ -77,7 +87,7 @@ if (( skip_notarize )); then
 fi
 
 echo "公証を実行中（数分かかります）…" >&2
-xcrun notarytool submit "$dmg_path" --keychain-profile "$notary_profile" --wait
+xcrun notarytool submit "$dmg_path" "${notary_args[@]}" --wait
 xcrun stapler staple "$dmg_path"
 # Proves the download will open on a machine that has never seen this app.
 spctl --assess --type open --context context:primary-signature -v "$dmg_path"
