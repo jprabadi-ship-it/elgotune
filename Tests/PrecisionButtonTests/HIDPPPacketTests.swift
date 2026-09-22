@@ -20,6 +20,27 @@ import CoreGraphics
     #expect(packet.featureIndex == 7)
     #expect(packet.function == 1)
     #expect(packet.softwareID == 0x0D)
+    #expect(!packet.isNotification)
+}
+
+@Test func requestCarriesItsOwnSoftwareID() {
+    // A retried request is told apart from the original by this nibble, so
+    // it has to survive encoding and be masked to four bits.
+    let report = HIDPPPacket.request(deviceIndex: 2, featureIndex: 0x0C, function: 0, softwareID: 0x05)
+    #expect(report[3] == 0x05)
+    let root = HIDPPPacket.rootFeatureRequest(deviceIndex: 2, featureID: 0x1B04, softwareID: 0x1C)
+    #expect(root[3] == 0x0C)
+    #expect(HIDPPPacket(bytes: report).softwareID == 0x05)
+}
+
+@Test func notificationsAndErrorsAreRecognized() {
+    // Button events arrive with software ID 0; both error formats are errors.
+    let event = HIDPPPacket(bytes: [0x11, 0x02, 0x0C, 0x00, 0x00, 0x5B, 0x00])
+    #expect(event.isNotification)
+    #expect(!event.isError)
+    #expect(HIDPPPacket(bytes: [0x10, 0x03, 0x8F, 0x00, 0x0D, 0x03, 0x00]).isError)
+    #expect(HIDPPPacket(bytes: [0x11, 0x02, 0xFF, 0x0C, 0x0D, 0x02, 0x00]).isError)
+    #expect(!HIDPPPacket(bytes: [0x11, 0x02, 0x0C, 0x0D, 0x09, 0x00, 0x00]).isError)
 }
 
 @Test func returnKeyHasVisibleLabel() {
