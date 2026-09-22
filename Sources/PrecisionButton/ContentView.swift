@@ -74,8 +74,13 @@ struct ContentView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Elgotune")
-                    .font(.largeTitle.bold())
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text("Elgotune")
+                        .font(.largeTitle.bold())
+                    Text(model.versionText)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
                 Text(L("MX ERGO / ERGO M575 のボタンを、好きな操作に変えます。"))
                     .foregroundStyle(.secondary)
             }
