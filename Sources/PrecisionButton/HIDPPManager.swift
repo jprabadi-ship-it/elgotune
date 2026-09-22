@@ -83,6 +83,14 @@ private struct NameProbe {
     var characters: [UInt8] = []
 }
 
+/// What a rescan knew about a device before it threw the state away. Filled
+/// back in only when the new enumeration provably came up short.
+private struct RetainedEndpoint {
+    var name: String
+    var count: Int?
+    var controls: [HIDPPControl]
+}
+
 private struct EndpointState {
     var buttonFeatureIndex: UInt8
     var count: Int?
@@ -128,6 +136,15 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
     /// fill the log with lines that say nothing changed.
     private var lastSentDiversion: [UInt16: Bool] = [:]
     private var started = false
+    /// Wireless HID++ replies get lost. Every request that expects one is
+    /// re-sent until it arrives or the attempts run out; these bound that.
+    private static let replyTimeout: TimeInterval = 0.5
+    private static let maxAttempts = 3
+    private static let controlRequestSpacing: TimeInterval = 0.025
+    /// Bumped by every rescan so a retry scheduled for the previous scan
+    /// cannot re-send into the new one.
+    private var scanGeneration = 0
+    private var retainedEndpoints: [EndpointKey: RetainedEndpoint] = [:]
 
     func start(diversionEnabled: Bool) {
         guard !started else { return }
@@ -148,6 +165,13 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
 
     func rescan() {
         for source in pressedSources(in: endpoints.values.flatMap(\.pressed)) { onButton?(source, false) }
+        // Keep what the last scan found: this one may lose a reply, and a
+        // shorter button list must never replace a complete one.
+        for (key, state) in endpoints {
+            guard let name = identifiedDevices[key] else { continue }
+            retainedEndpoints[key] = RetainedEndpoint(name: name, count: state.count, controls: state.controls)
+        }
+        scanGeneration += 1
         endpoints.removeAll()
         pendingRootFeatures.removeAll()
         nameProbes.removeAll()
@@ -302,6 +326,7 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
         pendingRootFeatures = pendingRootFeatures.filter { $0.key.connectionID != entry.key }
         nameProbes = nameProbes.filter { $0.key.connectionID != entry.key }
         identifiedDevices = identifiedDevices.filter { $0.key.connectionID != entry.key }
+        retainedEndpoints = retainedEndpoints.filter { $0.key.connectionID != entry.key }
         publishDevices()
         log(L("%@が切断されました", entry.value.product))
     }
@@ -310,9 +335,14 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
         guard let connection = connections.values.first(where: { $0.device === device }), bytes.count >= 7 else { return }
         let packet = HIDPPPacket(bytes: bytes)
         guard packet.bytes[0] == 0x10 || packet.bytes[0] == 0x11 else { return }
-        if packet.isError { return }
 
         let key = EndpointKey(connectionID: connection.id, deviceIndex: packet.deviceIndex)
+        if packet.isError {
+            // An error is still a reply. The receiver answers this way for an
+            // empty slot, and re-sending would only get the same answer.
+            if bytes.count > 3, bytes[3] == 0 { pendingRootFeatures.removeValue(forKey: key) }
+            return
+        }
 
         if packet.featureIndex == 0, packet.function == 0, packet.softwareID == HIDPPPacket.softwareID {
             guard bytes.count > 4, let requestedFeature = pendingRootFeatures.removeValue(forKey: key) else { return }
@@ -320,14 +350,14 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
             if requestedFeature == .deviceName {
                 guard featureIndex != 0 else { return }
                 nameProbes[key] = NameProbe(featureIndex: featureIndex)
-                send(connection, HIDPPPacket.request(deviceIndex: packet.deviceIndex, featureIndex: featureIndex, function: 0))
+                sendNameRequest(connection, key: key, function: 0, offset: 0)
                 return
             }
             if requestedFeature == .buttons {
                 guard featureIndex != 0 else { return }
                 endpoints[key] = EndpointState(buttonFeatureIndex: featureIndex)
                 log(L("HID++スロット%@: ボタン機能を検出", packet.deviceIndex))
-                send(connection, HIDPPPacket.request(deviceIndex: packet.deviceIndex, featureIndex: featureIndex, function: 0))
+                requestControlCount(connection, key: key)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self, weak connection] in
                     guard let self, let connection else { return }
                     self.requestRootFeature(.unifiedBattery, connection: connection, deviceIndex: packet.deviceIndex)
@@ -392,15 +422,12 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
         guard packet.featureIndex == state.buttonFeatureIndex else { return }
 
         if packet.softwareID == HIDPPPacket.softwareID, packet.function == 0 {
-            let count = Int(bytes[4])
-            state.count = count
+            // A second count reply means the first was late rather than lost;
+            // it must not start another enumeration on top of the running one.
+            guard state.count == nil else { return }
+            state.count = Int(bytes[4])
             endpoints[key] = state
-            for index in 0..<count {
-                DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.025) { [weak self, weak connection] in
-                    guard let self, let connection else { return }
-                    self.send(connection, HIDPPPacket.request(deviceIndex: packet.deviceIndex, featureIndex: state.buttonFeatureIndex, function: 1, parameters: [UInt8(index)]))
-                }
-            }
+            requestAllControls(connection, key: key)
             return
         }
 
@@ -463,12 +490,7 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
             guard let length = parameters.first, length > 0 else { return }
             probe.expectedLength = Int(length)
             nameProbes[key] = probe
-            send(connection, HIDPPPacket.request(
-                deviceIndex: key.deviceIndex,
-                featureIndex: probe.featureIndex,
-                function: 1,
-                parameters: [0]
-            ))
+            sendNameRequest(connection, key: key, function: 1, offset: 0)
             return
         }
 
@@ -477,12 +499,7 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
         nameProbes[key] = probe
 
         if probe.characters.count < expected, !parameters.allSatisfy({ $0 == 0 }) {
-            send(connection, HIDPPPacket.request(
-                deviceIndex: key.deviceIndex,
-                featureIndex: probe.featureIndex,
-                function: 1,
-                parameters: [UInt8(probe.characters.count)]
-            ))
+            sendNameRequest(connection, key: key, function: 1, offset: probe.characters.count)
             return
         }
 
@@ -502,7 +519,163 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
         let key = EndpointKey(connectionID: connection.id, deviceIndex: deviceIndex)
         guard pendingRootFeatures[key] == nil else { return }
         pendingRootFeatures[key] = feature
-        send(connection, HIDPPPacket.rootFeatureRequest(deviceIndex: deviceIndex, featureID: feature.rawValue))
+        let report = HIDPPPacket.rootFeatureRequest(deviceIndex: deviceIndex, featureID: feature.rawValue)
+        send(connection, report)
+        awaitReply(
+            key: key,
+            what: L("機能検索"),
+            // The name probe goes to every receiver slot, most of them empty.
+            // A slot that never answers is the normal case, not a fault.
+            quiet: feature == .deviceName,
+            stillWaiting: { [weak self] in self?.pendingRootFeatures[key] == feature },
+            resend: { [weak self, weak connection] in
+                guard let self, let connection else { return }
+                self.send(connection, report)
+            },
+            giveUp: { [weak self] in self?.pendingRootFeatures.removeValue(forKey: key) }
+        )
+    }
+
+    /// Re-sends a request every `replyTimeout` while `stillWaiting` says its
+    /// reply has not arrived, `maxAttempts` sends in total. A retry belongs to
+    /// the scan that scheduled it: a rescan or a disconnect in between
+    /// silently cancels it.
+    private func awaitReply(
+        key: EndpointKey,
+        what: String,
+        timeout: TimeInterval = HIDPPManager.replyTimeout,
+        attempt: Int = 1,
+        quiet: Bool = false,
+        stillWaiting: @escaping @Sendable () -> Bool,
+        resend: @escaping @Sendable () -> Void,
+        giveUp: @escaping @Sendable () -> Void
+    ) {
+        let generation = scanGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { [weak self] in
+            guard let self, generation == self.scanGeneration,
+                  self.connections[key.connectionID] != nil, stillWaiting() else { return }
+            if attempt >= Self.maxAttempts {
+                if !quiet { self.log(L("HID++スロット%@: %@の応答が得られませんでした", key.deviceIndex, what)) }
+                giveUp()
+                return
+            }
+            if !quiet {
+                self.log(L("HID++スロット%@: %@の応答がないため再送します（%@回目）", key.deviceIndex, what, attempt + 1))
+            }
+            resend()
+            self.awaitReply(
+                key: key, what: what, timeout: timeout, attempt: attempt + 1, quiet: quiet,
+                stillWaiting: stillWaiting, resend: resend, giveUp: giveUp
+            )
+        }
+    }
+
+    private func sendNameRequest(_ connection: HIDConnection, key: EndpointKey, function: UInt8, offset: Int) {
+        guard let probe = nameProbes[key] else { return }
+        let report = HIDPPPacket.request(
+            deviceIndex: key.deviceIndex,
+            featureIndex: probe.featureIndex,
+            function: function,
+            parameters: function == 0 ? [] : [UInt8(offset)]
+        )
+        send(connection, report)
+        awaitReply(
+            key: key,
+            what: L("デバイス名"),
+            // Unanswered means the probe still exists and has not moved past
+            // the point this request was made from.
+            stillWaiting: { [weak self] in
+                guard let probe = self?.nameProbes[key] else { return false }
+                return function == 0 ? probe.expectedLength == nil : probe.characters.count == offset
+            },
+            resend: { [weak self, weak connection] in
+                guard let self, let connection else { return }
+                self.send(connection, report)
+            },
+            giveUp: { [weak self] in self?.nameProbes.removeValue(forKey: key) }
+        )
+    }
+
+    private func requestControlCount(_ connection: HIDConnection, key: EndpointKey) {
+        guard let state = endpoints[key] else { return }
+        let report = HIDPPPacket.request(deviceIndex: key.deviceIndex, featureIndex: state.buttonFeatureIndex, function: 0)
+        send(connection, report)
+        awaitReply(
+            key: key,
+            what: L("ボタン数"),
+            stillWaiting: { [weak self] in
+                guard let state = self?.endpoints[key] else { return false }
+                return state.count == nil
+            },
+            resend: { [weak self, weak connection] in
+                guard let self, let connection else { return }
+                self.send(connection, report)
+            },
+            giveUp: { [weak self] in self?.carryOverRetainedControls(key: key) }
+        )
+    }
+
+    /// getCidInfo does not echo the index it was asked for, so one missing
+    /// reply cannot be re-requested on its own. Asking for every control
+    /// again is cheap, and duplicates are dropped by CID.
+    private func requestAllControls(_ connection: HIDConnection, key: EndpointKey) {
+        guard let state = endpoints[key], let count = state.count else { return }
+        let fire: @Sendable () -> Void = { [weak self, weak connection] in
+            guard let self, let connection, let state = self.endpoints[key] else { return }
+            let featureIndex = state.buttonFeatureIndex
+            for index in 0..<count {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * Self.controlRequestSpacing) { [weak self, weak connection] in
+                    guard let self, let connection else { return }
+                    self.send(connection, HIDPPPacket.request(
+                        deviceIndex: key.deviceIndex,
+                        featureIndex: featureIndex,
+                        function: 1,
+                        parameters: [UInt8(index)]
+                    ))
+                }
+            }
+        }
+        fire()
+        awaitReply(
+            key: key,
+            what: L("ボタン情報"),
+            timeout: Double(count) * Self.controlRequestSpacing + Self.replyTimeout,
+            quiet: true,
+            stillWaiting: { [weak self] in
+                guard let state = self?.endpoints[key], let count = state.count else { return false }
+                return state.controls.count < count
+            },
+            resend: { [weak self] in
+                guard let self else { return }
+                if let state = self.endpoints[key], let count = state.count {
+                    self.log(L("HID++スロット%@: ボタン情報が%@/%@件しか揃わないため再送します", key.deviceIndex, state.controls.count, count))
+                }
+                fire()
+            },
+            giveUp: { [weak self] in self?.carryOverRetainedControls(key: key) }
+        )
+    }
+
+    /// Runs when the enumeration gave up short. Anything the previous scan
+    /// found on the same device, and this one did not, is put back and
+    /// diverted again.
+    private func carryOverRetainedControls(key: EndpointKey) {
+        guard var state = endpoints[key],
+              let retained = retainedEndpoints[key],
+              retained.name == identifiedDevices[key] else { return }
+        let missing = retained.controls.filter { control in !state.controls.contains { $0.id == control.id } }
+        guard !missing.isEmpty else { return }
+        let found = state.controls.count
+        state.controls.append(contentsOf: missing)
+        if state.count == nil { state.count = retained.count }
+        endpoints[key] = state
+        let total = state.count ?? state.controls.count
+        log(L(
+            "HID++スロット%@: 列挙が%@/%@件で終わったため、前回検出した%@個のボタンを引き継ぎました",
+            key.deviceIndex, found, total, missing.count
+        ))
+        applyDiversion()
+        publishDevices()
     }
 
     private func requestNextBatteryFeature(after feature: HIDPPFeature, connection: HIDConnection, deviceIndex: UInt8) {

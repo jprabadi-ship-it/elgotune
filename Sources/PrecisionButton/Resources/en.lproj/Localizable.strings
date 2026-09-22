@@ -181,6 +181,14 @@
 "HID++スロット%@: バッテリー情報は非対応" = "HID++ slot %@: battery reporting not supported";
 "HID++スロット%@: デバイス切り替え対応（%@/%@）" = "HID++ slot %@: device switching supported (%@/%@)";
 "HID++スロット%@: デバイス切り替えは非対応" = "HID++ slot %@: device switching not supported";
+"機能検索" = "feature lookup";
+"デバイス名" = "device name";
+"ボタン数" = "button count";
+"ボタン情報" = "button details";
+"HID++スロット%@: %@の応答が得られませんでした" = "HID++ slot %@: no reply to the %@ request";
+"HID++スロット%@: %@の応答がないため再送します（%@回目）" = "HID++ slot %@: no reply to the %@ request, re-sending (attempt %@)";
+"HID++スロット%@: ボタン情報が%@/%@件しか揃わないため再送します" = "HID++ slot %@: only %@ of %@ button details arrived, re-sending";
+"HID++スロット%@: 列挙が%@/%@件で終わったため、前回検出した%@個のボタンを引き継ぎました" = "HID++ slot %@: enumeration ended at %@ of %@, carried over %@ button(s) from the previous scan";
 "%@を検出（CID 0x%@）" = "Found %@ (CID 0x%@)";
 "未対応のボタン（CID 0x%@%@）" = "Unsupported button (CID 0x%@%@)";
 " / 転送不可" = " / cannot divert";
