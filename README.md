@@ -45,9 +45,11 @@ macOS 14 以降。トラックボールを制御するため、次の許可が�
 ## ビルド
 
 ```sh
-swift build && swift test
-swift run PrecisionButton
+swift build --scratch-path /tmp/elgotune-build
+swift test --scratch-path /tmp/elgotune-build
 ```
+
+`--scratch-path` はプロジェクトが Google ドライブ上にあるための指定です。既定の `.build/` に出すと、Drive が中間ファイルを逐一同期し、ビルド中に `.dSYM` や `.xctest` のバンドルが tar ファイルに化けて失敗することがあります。ローカルディスクでは省略して構いません。
 
 アプリバンドルとして生成する場合:
 

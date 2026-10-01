@@ -49,17 +49,19 @@ fi
 echo "署名ID: $identity" >&2
 
 # The project lives on Google Drive, which re-adds extended attributes the
-# moment they are cleared; assemble and sign on a local disk instead.
+# moment they are cleared; assemble and sign on a local disk instead. Build
+# products stay off Drive as well, since it syncs every intermediate file.
+scratch_dir="${ELGOTUNE_SCRATCH_PATH:-/tmp/elgotune-build}"
 cd "$project_dir"
-swift build -c release
+swift build -c release --scratch-path "$scratch_dir"
 
 rm -rf "$stage_dir"
 mkdir -p "$contents_dir/MacOS" "$contents_dir/Resources"
-cp "$project_dir/.build/release/PrecisionButton" "$contents_dir/MacOS/PrecisionButton"
+cp "$scratch_dir/release/PrecisionButton" "$contents_dir/MacOS/PrecisionButton"
 cp "$project_dir/Resources/Info.plist" "$contents_dir/Info.plist"
 # SwiftPM keeps localizations in its own bundle; Bundle.module looks for it
 # next to the executable's resources.
-cp -R "$project_dir/.build/release/PrecisionButton_PrecisionButton.bundle" "$contents_dir/Resources/"
+cp -R "$scratch_dir/release/PrecisionButton_PrecisionButton.bundle" "$contents_dir/Resources/"
 xcrun actool "$project_dir/Resources/Assets.xcassets" \
   --compile "$contents_dir/Resources" \
   --platform macosx \

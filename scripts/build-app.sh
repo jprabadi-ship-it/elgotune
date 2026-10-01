@@ -8,20 +8,23 @@ project_dir="${0:A:h:h}"
 stage_dir="/tmp/elgotune-stage"
 app_dir="$stage_dir/Elgotune.app"
 contents_dir="$app_dir/Contents"
+# Build products stay off Google Drive too: Drive syncs every intermediate
+# file and turns bundles such as .dSYM into plain archives mid-build.
+scratch_dir="${ELGOTUNE_SCRATCH_PATH:-/tmp/elgotune-build}"
 
 export CLANG_MODULE_CACHE_PATH="/tmp/elgotune-clang-cache"
 export SWIFTPM_MODULECACHE_OVERRIDE="/tmp/elgotune-swift-cache"
 
 cd "$project_dir"
-swift build -c release
+swift build -c release --scratch-path "$scratch_dir"
 
 rm -rf "$app_dir"
 mkdir -p "$contents_dir/MacOS" "$contents_dir/Resources"
-cp "$project_dir/.build/release/PrecisionButton" "$contents_dir/MacOS/PrecisionButton"
+cp "$scratch_dir/release/PrecisionButton" "$contents_dir/MacOS/PrecisionButton"
 cp "$project_dir/Resources/Info.plist" "$contents_dir/Info.plist"
 # SwiftPM keeps localizations in its own bundle; Bundle.module looks for it
 # next to the executable's resources.
-cp -R "$project_dir/.build/release/PrecisionButton_PrecisionButton.bundle" "$contents_dir/Resources/"
+cp -R "$scratch_dir/release/PrecisionButton_PrecisionButton.bundle" "$contents_dir/Resources/"
 xcrun actool "$project_dir/Resources/Assets.xcassets" \
   --compile "$contents_dir/Resources" \
   --platform macosx \
