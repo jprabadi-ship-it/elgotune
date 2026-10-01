@@ -55,6 +55,15 @@ scratch_dir="${ELGOTUNE_SCRATCH_PATH:-/tmp/elgotune-build}"
 cd "$project_dir"
 swift build -c release --scratch-path "$scratch_dir"
 
+# Releases 0.1.5 to 1.0.1 only ran on this machine: SwiftPM's generated
+# resource lookup fell back to the build directory's absolute path, which
+# no other Mac has. A binary that still names either directory would do
+# the same, so refuse to ship it.
+if strings "$scratch_dir/release/PrecisionButton" | grep -qF -e "$scratch_dir" -e "$project_dir"; then
+  echo "エラー: バイナリに開発機のパスが埋め込まれています。他の Mac で起動できない恐れがあります。" >&2
+  exit 1
+fi
+
 rm -rf "$stage_dir"
 mkdir -p "$contents_dir/MacOS" "$contents_dir/Resources"
 cp "$scratch_dir/release/PrecisionButton" "$contents_dir/MacOS/PrecisionButton"
