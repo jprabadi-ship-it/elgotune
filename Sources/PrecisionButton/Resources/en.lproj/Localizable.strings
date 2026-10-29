@@ -229,3 +229,11 @@
 "転送設定が失われていたため再スキャンします" = "The diversion was lost — rescanning";
 "イベント処理に %@ ms かかりました（種類 %@）" = "Handling an event took %@ ms (type %@)";
 "押しっぱなし中は、そのボタンの通常ドラッグがトラックボール操作へ置き換わります。" = "While the button is held, dragging with it becomes trackball control instead.";
+"すべてのデバイス" = "All devices";
+"対象デバイス" = "Device";
+"%@を検出" = "%@ detected";
+"%@が切断されました" = "%@ disconnected";
+"このデバイスで押したときだけカスタマイズします。他のマウスでは通常どおり動作します。" = "Customized only when pressed on this device. Other mice keep their normal behavior.";
+"%@が接続されていません。接続されるまで、このボタンは通常どおり動作します。" = "%@ is not connected. Until it is, this button keeps its normal behavior.";
+"%@を検出（%@）" = "%@ detected (%@)";
+"%@: 対象外のデバイス（0x%@）なので通常どおり動作" = "%@: from another device (0x%@), left unchanged";

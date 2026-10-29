@@ -146,6 +146,9 @@ struct ContentView: View {
                 }
 
                 let mapping = mappingBinding(for: selectedSource)
+                if [ButtonSource.left, .right, .middle].contains(selectedSource) {
+                    DeviceScopePicker(scope: mapping.deviceScope)
+                }
                 ActionPicker(title: L("短押し"), action: Binding(
                     get: { mapping.wrappedValue.shortPress },
                     set: { mapping.wrappedValue.shortPress = $0 }
@@ -473,6 +476,28 @@ struct ContentView: View {
             model.mapping(for: source)
         } set: { value in
             model.setMapping(value, for: source)
+        }
+    }
+}
+
+private struct DeviceScopePicker: View {
+    @EnvironmentObject private var model: AppModel
+    @Binding var scope: DeviceScope
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Picker(L("対象デバイス"), selection: $scope) {
+                ForEach(DeviceScope.allCases) { scope in
+                    Text(scope.displayName).tag(scope)
+                }
+            }
+            if scope != .all {
+                Text(model.isConnected(scope)
+                     ? L("このデバイスで押したときだけカスタマイズします。他のマウスでは通常どおり動作します。")
+                     : L("%@が接続されていません。接続されるまで、このボタンは通常どおり動作します。", scope.displayName))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }

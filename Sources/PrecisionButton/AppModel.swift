@@ -46,6 +46,9 @@ final class AppModel: ObservableObject {
         }
     }
     @Published private(set) var devices: [LogitechDevice] = []
+    /// HID service IDs of the non-Logitech devices a mapping can be limited
+    /// to. They have no HID++ to announce themselves, so this is polled.
+    @Published private(set) var scopedDeviceIDs: [DeviceScope: Set<UInt64>] = [:]
     /// Writing the pointer resolution nudges the cursor, so it is only written
     /// when the values or the device set actually differ from last time.
     private var lastAppliedPointer: (settings: PointerSettings, deviceIDs: Set<String>)?
@@ -106,12 +109,22 @@ final class AppModel: ObservableObject {
     private static let rescanCooldownSeconds: Double = 20
 
     var statusText: String {
-        guard !devices.isEmpty else { return L("Logitechデバイスを待機中…") }
-        if devices.count == 1, let device = devices.first {
+        let others = DeviceScope.allCases.filter(isConnected).map(\.displayName).joined(separator: "、")
+        let logitech: String
+        if devices.isEmpty {
+            guard others.isEmpty else { return L("%@を検出", others) }
+            return L("Logitechデバイスを待機中…")
+        } else if devices.count == 1, let device = devices.first {
             let suffix = device.precisionControlID != nil ? L("精密モードボタンを検出") : L("%@個のボタンを検出", device.controls.count)
-            return "\(device.name): \(suffix)"
+            logitech = "\(device.name): \(suffix)"
+        } else {
+            logitech = L("%@台を検出: ", devices.count) + devices.map(\.name).joined(separator: "、")
         }
-        return L("%@台を検出: ", devices.count) + devices.map(\.name).joined(separator: "、")
+        return others.isEmpty ? logitech : "\(logitech) ／ \(others)"
+    }
+
+    func isConnected(_ scope: DeviceScope) -> Bool {
+        !(scopedDeviceIDs[scope]?.isEmpty ?? true)
     }
 
     /// Any HID++ device with buttons is usable; the precision button is only
@@ -310,6 +323,7 @@ final class AppModel: ObservableObject {
         mouse.start()
         mouse.setScrollSettings(scrollSettings)
         applyPointerSettings()
+        refreshScopedDevices()
         syncDiversionState()
         appendLog(eventPostingGranted ? L("キーボード・マウス操作の送信権限を確認") : L("操作送信権限がありません"))
 
@@ -459,6 +473,7 @@ final class AppModel: ObservableObject {
     /// Cheap upkeep: safe to run on the main thread every few seconds.
     private func checkHealth() {
         mouse.ensureRunning()
+        refreshScopedDevices()
         mouse.setOwnWindowFrames(ownWindowFrames())
         refreshPermissions()
         if Date().timeIntervalSince(lastDiversionRefresh) >= Self.diversionRefreshSeconds {
@@ -540,6 +555,26 @@ final class AppModel: ObservableObject {
     func rescan() {
         lastRescan = Date()
         hid.rescan()
+        refreshScopedDevices()
+    }
+
+    /// Service IDs change on every reconnect, so the tap's filters are rebuilt
+    /// whenever the set differs.
+    private func refreshScopedDevices() {
+        var found: [DeviceScope: Set<UInt64>] = [:]
+        for scope in DeviceScope.allCases {
+            if let ids = PointerDevices.serviceIDs(for: scope) { found[scope] = ids }
+        }
+        guard found != scopedDeviceIDs else { return }
+        for scope in DeviceScope.allCases where found[scope] != nil {
+            let now = !(found[scope]?.isEmpty ?? true)
+            if now != isConnected(scope) {
+                let ids = (found[scope] ?? []).map { "0x" + String($0, radix: 16) }.sorted().joined(separator: ", ")
+                appendLog(now ? L("%@を検出（%@）", scope.displayName, ids) : L("%@が切断されました", scope.displayName))
+            }
+        }
+        scopedDeviceIDs = found
+        syncDiversionState()
     }
 
     func refreshBattery() {
@@ -965,6 +1000,12 @@ final class AppModel: ObservableObject {
                 || value.longPressMode != .action
         })
         mouse.setCapturedSources(customized.intersection([.left, .right, .middle]))
+        var filters: [ButtonSource: Set<UInt64>] = [:]
+        for source in [ButtonSource.left, .right, .middle] {
+            let scope = mapping(for: source).deviceScope
+            if scope != .all { filters[source] = scopedDeviceIDs[scope] ?? [] }
+        }
+        mouse.setDeviceFilters(filters)
         // Only scroll and direction modes have a use for pointer motion.
         let motionSources = Set(customized.filter { mapping(for: $0).longPressMode != .action })
         mouse.setMotionSources(effectiveEnabled ? motionSources : [])
