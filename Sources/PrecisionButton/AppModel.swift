@@ -94,6 +94,7 @@ final class AppModel: ObservableObject {
     private var lastPermissionCheck = Date.distantPast
     private var lastDiversionRefresh = Date.distantPast
     private var lastRescan = Date.distantPast
+    private var lastEmptyProbe = Date.distantPast
 
     private static let directionalCooldownMilliseconds: Double = 350
     private static let healthCheckSeconds: Double = 5
@@ -103,10 +104,12 @@ final class AppModel: ObservableObject {
     /// so it is re-sent on this interval even when nothing changed here.
     private static let diversionRefreshSeconds: Double = 60
     /// Re-sending is not enough once a connection has gone stale — coming back
-    /// from a long idle needs the full re-probe the Rescan button performs.
+    /// from a long idle needs every device asked again who it is.
     private static let rescanIntervalSeconds: Double = 300
     /// A rescan triggered by a lost-diversion signal may not repeat faster.
     private static let rescanCooldownSeconds: Double = 20
+    /// While no supported device is known, how often to look for one.
+    private static let emptyProbeSeconds: Double = 15
 
     var statusText: String {
         let others = DeviceScope.allCases.filter(isConnected).map(\.displayName).joined(separator: "、")
@@ -274,7 +277,7 @@ final class AppModel: ObservableObject {
                 guard let self else { return }
                 let previous = self.availableSources
                 self.devices = devices
-                // A rescan empties this list before refilling it. Applying on
+                // The Rescan button empties this list before refilling it. Applying on
                 // that transient would rewrite the pointer resolution twice
                 // every five minutes, and each write jolts the cursor.
                 self.applyPointerSettingsIfChanged()
@@ -305,6 +308,9 @@ final class AppModel: ObservableObject {
                 // Only worth saying once per recovery; the cooldown does the rest.
                 if Date().timeIntervalSince(self.lastRescan) >= Self.rescanCooldownSeconds {
                     self.appendLog(L("転送設定が失われていたため再スキャンします"))
+                    // The rescan gets there too, but only once the device
+                    // has been identified and enumerated again.
+                    self.hid.refreshDiversion()
                 }
                 self.rescanIfDue()
             }
@@ -358,7 +364,9 @@ final class AppModel: ObservableObject {
             MainActor.assumeIsolated {
                 self?.refreshPermissions(force: true)
                 self?.hid.refreshDiversion()
-                self?.rescan()
+                // Devices are slow to answer right after a wake; what was
+                // known before the sleep must outlive an unanswered scan.
+                self?.rescan(discardingKnownDevices: false)
             }
         }
         let healthTimer = Timer(timeInterval: Self.healthCheckSeconds, repeats: true) { [weak self] _ in
@@ -440,7 +448,7 @@ final class AppModel: ObservableObject {
     }
 
     /// Skips the write when nothing changed, and while the device list is
-    /// momentarily empty during a rescan.
+    /// momentarily empty after the Rescan button.
     private func applyPointerSettingsIfChanged() {
         let ids = Set(devices.map(\.id))
         guard !ids.isEmpty else { return }
@@ -483,10 +491,14 @@ final class AppModel: ObservableObject {
         if Date().timeIntervalSince(lastRescan) >= Self.rescanIntervalSeconds {
             rescanIfDue()
         }
+        if Date().timeIntervalSince(lastEmptyProbe) >= Self.emptyProbeSeconds {
+            lastEmptyProbe = Date()
+            hid.probeWhileEmpty()
+        }
     }
 
-    /// The work behind the Rescan button, on a timer and after a lost-diversion
-    /// signal. Re-probing rebuilds connections that went stale while idle.
+    /// On a timer and after a lost-diversion signal. Unlike the Rescan button
+    /// it keeps the devices already known, so buttons work throughout.
     private func rescanIfDue() {
         guard Date().timeIntervalSince(lastRescan) >= Self.rescanCooldownSeconds else { return }
         lastRescan = Date()
@@ -552,9 +564,11 @@ final class AppModel: ObservableObject {
         mouse.ensureRunning()
     }
 
-    func rescan() {
+    /// The Rescan button starts from nothing, which is what clears a device
+    /// that is gone for good out of the list.
+    func rescan(discardingKnownDevices: Bool = true) {
         lastRescan = Date()
-        hid.rescan()
+        hid.rescan(discardingKnownDevices: discardingKnownDevices)
         refreshScopedDevices()
     }
 
