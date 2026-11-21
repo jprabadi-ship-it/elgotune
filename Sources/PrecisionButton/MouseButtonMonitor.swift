@@ -21,6 +21,9 @@ final class MouseButtonMonitor: @unchecked Sendable {
     private let lock = NSLock()
     private var capturedSources: Set<ButtonSource> = []
     private var activeSources: Set<ButtonSource> = []
+    /// Buttons that only listen to particular devices, by HID service
+    /// registry ID. A missing entry means any device; an empty set, none.
+    private var deviceFilters: [ButtonSource: Set<UInt64>] = [:]
     private var scrollSettings = ScrollSettings()
     /// Buttons currently diverted over HID++. Seeing one of these as a native
     /// event is proof that the device dropped our setting.
@@ -54,6 +57,12 @@ final class MouseButtonMonitor: @unchecked Sendable {
     func setMotionSources(_ sources: Set<ButtonSource>) {
         lock.lock()
         motionSources = sources
+        lock.unlock()
+    }
+
+    func setDeviceFilters(_ filters: [ButtonSource: Set<UInt64>]) {
+        lock.lock()
+        deviceFilters = filters
         lock.unlock()
     }
 
@@ -252,8 +261,16 @@ final class MouseButtonMonitor: @unchecked Sendable {
         }
 
         lock.lock()
-        let shouldCapture = capturedSources.contains(source) || activeSources.contains(source)
+        let isActive = activeSources.contains(source)
+        // A press from another device is left alone, and so is its release:
+        // the button never became active, and the release names the same sender.
+        let fromAllowedDevice = deviceFilters[source].map { $0.contains(PointerDevices.sender(of: event)) } ?? true
+        let shouldCapture = isActive || (capturedSources.contains(source) && fromAllowedDevice)
+        let filteredOut = pressed && !isActive && capturedSources.contains(source) && !fromAllowedDevice
         lock.unlock()
+        if filteredOut {
+            onLog?(L("%@: 対象外のデバイス（0x%@）なので通常どおり動作", source.displayName, String(PointerDevices.sender(of: event), radix: 16)))
+        }
         guard shouldCapture else { return Unmanaged.passUnretained(event) }
 
         // Keep left click available inside our own UI so every customization can

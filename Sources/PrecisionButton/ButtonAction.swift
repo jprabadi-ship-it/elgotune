@@ -85,21 +85,26 @@ struct ButtonMapping: Codable, Equatable {
     var longPress: ButtonAction
     var longPressMode: LongPressMode
     var directionalActions: [GestureDirection: ButtonAction]
+    /// Only left/right/middle honour this: they are the buttons the event tap
+    /// sees, and the tap is where the sending device is known.
+    var deviceScope: DeviceScope
 
     init(
         shortPress: ButtonAction,
         longPress: ButtonAction,
         longPressMode: LongPressMode = .action,
-        directionalActions: [GestureDirection: ButtonAction] = [:]
+        directionalActions: [GestureDirection: ButtonAction] = [:],
+        deviceScope: DeviceScope = .all
     ) {
         self.shortPress = shortPress
         self.longPress = longPress
         self.longPressMode = longPressMode
         self.directionalActions = directionalActions
+        self.deviceScope = deviceScope
     }
 
     private enum CodingKeys: String, CodingKey {
-        case shortPress, longPress, longPressMode, directionalActions
+        case shortPress, longPress, longPressMode, directionalActions, deviceScope
     }
 
     init(from decoder: Decoder) throws {
@@ -108,6 +113,7 @@ struct ButtonMapping: Codable, Equatable {
         longPress = try container.decode(ButtonAction.self, forKey: .longPress)
         longPressMode = try container.decodeIfPresent(LongPressMode.self, forKey: .longPressMode) ?? .action
         directionalActions = try container.decodeIfPresent([GestureDirection: ButtonAction].self, forKey: .directionalActions) ?? [:]
+        deviceScope = try container.decodeIfPresent(DeviceScope.self, forKey: .deviceScope) ?? .all
     }
 
     func action(for direction: GestureDirection) -> ButtonAction {
