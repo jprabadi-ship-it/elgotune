@@ -516,6 +516,9 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
             log(L("HID++スロット%@: デバイス切り替え対応（%@/%@）", packet.deviceIndex, bytes[5] + 1, bytes[4]))
             // Easy-Switch diversion depends on this capability, so re-apply it.
             applyDiversion(only: key)
+            // The button list offers Easy-Switch only for a device that can
+            // switch, and nothing else is published after this reply.
+            publishDevices()
             return
         }
 
