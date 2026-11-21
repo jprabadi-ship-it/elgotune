@@ -20,10 +20,14 @@ enum DeviceScope: String, Codable, CaseIterable, Identifiable {
     }
 
     /// nil means every device, so there is nothing to look up.
-    fileprivate var identity: (vendorID: Int, productID: Int)? {
+    fileprivate var identities: [(vendorID: Int, productID: Int)]? {
         switch self {
         case .all: nil
-        case .keychronT1HE: (0x3434, 0xD084)
+        // 0xD084 is the mouse itself over Bluetooth or cable. Through the
+        // Keychron Link-KM receiver (0xD026) it reports the receiver's IDs
+        // instead, and nothing in the registry names the paired mouse, so
+        // any mouse on a Link-KM counts as the T1 HE.
+        case .keychronT1HE: [(0x3434, 0xD084), (0x3434, 0xD026)]
         }
     }
 }
@@ -41,22 +45,24 @@ enum PointerDevices {
     /// Registry IDs of the pointer services that belong to `scope` right now.
     /// Empty when the device is not connected; nil for `.all`.
     static func serviceIDs(for scope: DeviceScope) -> Set<UInt64>? {
-        guard let identity = scope.identity else { return nil }
-        let matching = IOServiceMatching("IOHIDEventService") as NSMutableDictionary
-        matching[kIOPropertyMatchKey] = [
-            "VendorID": identity.vendorID,
-            "ProductID": identity.productID,
-            "PrimaryUsagePage": 1,
-            "PrimaryUsage": 2
-        ]
-        var iterator: io_iterator_t = 0
-        guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else { return [] }
-        defer { IOObjectRelease(iterator) }
+        guard let identities = scope.identities else { return nil }
         var ids: Set<UInt64> = []
-        while case let service = IOIteratorNext(iterator), service != 0 {
-            var id: UInt64 = 0
-            if IORegistryEntryGetRegistryEntryID(service, &id) == KERN_SUCCESS { ids.insert(id) }
-            IOObjectRelease(service)
+        for identity in identities {
+            let matching = IOServiceMatching("IOHIDEventService") as NSMutableDictionary
+            matching[kIOPropertyMatchKey] = [
+                "VendorID": identity.vendorID,
+                "ProductID": identity.productID,
+                "PrimaryUsagePage": 1,
+                "PrimaryUsage": 2
+            ]
+            var iterator: io_iterator_t = 0
+            guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else { continue }
+            while case let service = IOIteratorNext(iterator), service != 0 {
+                var id: UInt64 = 0
+                if IORegistryEntryGetRegistryEntryID(service, &id) == KERN_SUCCESS { ids.insert(id) }
+                IOObjectRelease(service)
+            }
+            IOObjectRelease(iterator)
         }
         return ids
     }
