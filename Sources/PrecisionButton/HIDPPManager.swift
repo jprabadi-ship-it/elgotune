@@ -104,19 +104,17 @@ private struct PendingRootRequest {
     var softwareID: UInt8
 }
 
-/// What a rescan knew about a device before it threw the state away. Filled
-/// back in only when the new enumeration provably came up short.
-private struct RetainedEndpoint {
-    var name: String
-    var count: Int?
-    var controls: [HIDPPControl]
-}
-
 private struct EndpointState {
     var buttonFeatureIndex: UInt8
+    /// The control count the running scan was told, nil until it answers.
     var count: Int?
     var countRequestSoftwareID: UInt8?
+    /// Every control any scan has found. A rescan adds to this and never
+    /// empties it: a device that is asleep cannot be enumerated, and its
+    /// buttons still have to work the moment it wakes.
     var controls: [HIDPPControl] = []
+    /// Controls that answered the running scan, to tell when it is complete.
+    var enumerated: Set<UInt16> = []
     var pressed: Set<UInt16> = []
     var batteryFeatureID: UInt16?
     var batteryFeatureIndex: UInt8?
@@ -168,7 +166,13 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
     /// Bumped by every rescan so a retry scheduled for the previous scan
     /// cannot re-send into the new one.
     private var scanGeneration = 0
-    private var retainedEndpoints: [EndpointKey: RetainedEndpoint] = [:]
+    /// Unsupported devices already reported, so re-probing stays quiet.
+    private var reportedUnsupported: Set<EndpointKey> = []
+    /// A receiver can announce one wake-up several times over.
+    private var lastLinkNotice: [EndpointKey: Date] = [:]
+    private static let linkNoticeQuietSeconds: TimeInterval = 5
+    /// Last error a receiver gave for a known device, to log each change once.
+    private var lastProbeError: [EndpointKey: UInt8] = [:]
     /// Rotates through 1...12. Skips 0 (notifications) and the fixed 0x0D
     /// that requests without a retry still use, so a reply to an earlier
     /// send can never be mistaken for the one currently awaited.
@@ -197,25 +201,43 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
             : L("HID監視を開始できません (0x%@)", String(UInt32(bitPattern: result), radix: 16)))
     }
 
-    func rescan() {
-        for source in pressedSources(in: endpoints.values.flatMap(\.pressed)) { onButton?(source, false) }
-        // Keep what the last scan found: this one may lose a reply, and a
-        // shorter button list must never replace a complete one. A scan that
-        // is itself still short (interrupted by this rescan) is not kept
-        // either, so the older complete snapshot survives it.
-        for (key, state) in endpoints {
-            guard let name = identifiedDevices[key], let count = state.count, state.controls.count >= count else { continue }
-            retainedEndpoints[key] = RetainedEndpoint(name: name, count: count, controls: state.controls)
-        }
+    /// Asks every device again who it is and what buttons it has.
+    ///
+    /// What is already known stays in place while the answers come in. It
+    /// used to be thrown away first, and until the new answers arrived —
+    /// seconds on a slow link, five minutes when the device was asleep and
+    /// answered nothing — button presses reached the app and were dropped.
+    ///
+    /// `discardingKnownDevices` is for the Rescan button. An unpaired device
+    /// stays listed until then: a receiver answers for it with an error, as
+    /// it does for one that is asleep, and which error code means which has
+    /// not been measured on real hardware yet (see `noteProbeError`).
+    func rescan(discardingKnownDevices: Bool = false) {
         scanGeneration += 1
-        endpoints.removeAll()
         pendingRootFeatures.removeAll()
         nameProbes.removeAll()
-        identifiedDevices.removeAll()
-        lastSentDiversion.removeAll()
-        publishDevices()
-        log(L("HID++デバイスを再スキャン"))
+        if discardingKnownDevices {
+            for source in pressedSources(in: endpoints.values.flatMap(\.pressed)) { onButton?(source, false) }
+            endpoints.removeAll()
+            identifiedDevices.removeAll()
+            reportedUnsupported.removeAll()
+            lastProbeError.removeAll()
+            lastSentDiversion.removeAll()
+            publishDevices()
+            log(L("HID++デバイスを再スキャン"))
+        }
         for connection in connections.values where open(connection) {
+            probe(connection)
+        }
+    }
+
+    /// For the time no supported device is known at all: one that was asleep
+    /// at launch should be picked up when it wakes, not at the next rescan.
+    func probeWhileEmpty() {
+        guard endpoints.isEmpty else { return }
+        // Only what is already open. Retrying a refused open this often
+        // would log the refusal every time; a rescan retries it instead.
+        for connection in connections.values where connection.isOpen {
             probe(connection)
         }
     }
@@ -241,8 +263,8 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
         applyDiversion()
     }
 
-    private func applyDiversion() {
-        for (key, state) in endpoints {
+    private func applyDiversion(only target: EndpointKey? = nil) {
+        for (key, state) in endpoints where target == nil || key == target {
             guard let connection = connections[key.connectionID] else { continue }
             for control in state.controls where control.isDivertable {
                 guard let source = sourceForControl(control.id) else { continue }
@@ -362,7 +384,9 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
         pendingRootFeatures = pendingRootFeatures.filter { $0.key.connectionID != entry.key }
         nameProbes = nameProbes.filter { $0.key.connectionID != entry.key }
         identifiedDevices = identifiedDevices.filter { $0.key.connectionID != entry.key }
-        retainedEndpoints = retainedEndpoints.filter { $0.key.connectionID != entry.key }
+        reportedUnsupported = reportedUnsupported.filter { $0.connectionID != entry.key }
+        lastLinkNotice = lastLinkNotice.filter { $0.key.connectionID != entry.key }
+        lastProbeError = lastProbeError.filter { $0.key.connectionID != entry.key }
         publishDevices()
         log(L("%@が切断されました", entry.value.product))
     }
@@ -381,6 +405,22 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
             if bytes.count > 4, bytes[3] == 0,
                let pending = pendingRootFeatures[key], bytes[4] & 0x0F == pending.softwareID {
                 pendingRootFeatures.removeValue(forKey: key)
+                if bytes.count > 5 { noteProbeError(bytes[5], key: key) }
+            }
+            return
+        }
+
+        // HID++ 1.0 notification 0x41: a receiver reporting that a paired
+        // device has come into or gone out of reach. Bit 6 set means gone.
+        // A receiver sends these only while its notification flags are on,
+        // and nothing here turns them on; whether they arrive unasked is
+        // still to be seen. The periodic re-send does not depend on them.
+        if bytes[0] == 0x10, bytes[2] == 0x41,
+           connection.candidateIndices.count > 1, connection.candidateIndices.contains(packet.deviceIndex) {
+            if bytes[4] & 0x40 == 0 {
+                deviceLinked(connection: connection, key: key)
+            } else {
+                deviceUnlinked(key: key)
             }
             return
         }
@@ -402,12 +442,28 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
             }
             if requestedFeature == .buttons {
                 guard featureIndex != 0 else { return }
-                endpoints[key] = EndpointState(buttonFeatureIndex: featureIndex)
-                log(L("HID++スロット%@: ボタン機能を検出", packet.deviceIndex))
+                if let known = endpoints[key], known.buttonFeatureIndex != featureIndex {
+                    // Same name, different feature table: every index held
+                    // for the old one is wrong, so start from nothing.
+                    let name = identifiedDevices[key]
+                    forget(key)
+                    identifiedDevices[key] = name
+                }
+                if var state = endpoints[key] {
+                    // A device already known: count its controls afresh
+                    // without letting go of the ones found so far.
+                    state.count = nil
+                    state.countRequestSoftwareID = nil
+                    state.enumerated = []
+                    endpoints[key] = state
+                } else {
+                    endpoints[key] = EndpointState(buttonFeatureIndex: featureIndex)
+                    log(L("HID++スロット%@: ボタン機能を検出", packet.deviceIndex))
+                }
                 requestControlCount(connection, key: key)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self, weak connection] in
                     guard let self, let connection else { return }
-                    self.requestRootFeature(.unifiedBattery, connection: connection, deviceIndex: packet.deviceIndex)
+                    self.refreshBatteryAndHost(connection: connection, key: key)
                 }
                 return
             }
@@ -451,12 +507,15 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
 
         // CHANGE_HOST getHostInfo: [nbHost, currHost] (currHost is 0-based).
         if packet.featureIndex == state.changeHostFeatureIndex, packet.function == 0, bytes.count >= 6 {
+            let changed = state.hostCount != Int(bytes[4]) || state.currentHost != Int(bytes[5])
             state.hostCount = Int(bytes[4])
             state.currentHost = Int(bytes[5])
             endpoints[key] = state
+            // Asked again on every rescan; only a different answer is news.
+            guard changed else { return }
             log(L("HID++スロット%@: デバイス切り替え対応（%@/%@）", packet.deviceIndex, bytes[5] + 1, bytes[4]))
             // Easy-Switch diversion depends on this capability, so re-apply it.
-            applyDiversion()
+            applyDiversion(only: key)
             return
         }
 
@@ -482,26 +541,30 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
         if !packet.isNotification, packet.function == 1, bytes.count >= 9 {
             let cid = UInt16(bytes[4]) << 8 | UInt16(bytes[5])
             let control = HIDPPControl(id: cid, flags: bytes[8])
-            // A retry asks for every control again; the ones that already
-            // answered were logged, diverted and published the first time.
-            guard !state.controls.contains(where: { $0.id == cid }) else { return }
-            state.controls.append(control)
+            // A retry asks for every control again; each counts once a scan.
+            guard state.enumerated.insert(cid).inserted else { return }
+            let isNew = !state.controls.contains(where: { $0.id == cid })
+            if isNew { state.controls.append(control) }
             endpoints[key] = state
-            if let source = sourceForControl(cid) {
-                log(L("%@を検出（CID 0x%@）", source.displayName, String(cid, radix: 16).uppercased()))
-                if control.isDivertable, shouldDivert(source, on: state) {
-                    setDiversion(connection: connection, deviceIndex: packet.deviceIndex, featureIndex: state.buttonFeatureIndex, controlID: cid, enabled: true)
-                }
-                // Publish on every control: the UI builds its button list from
-                // this snapshot, and the tilts arrive after the precision
-                // button, so publishing only for that one hid them.
-                publishDevices()
-            } else {
+            guard let source = sourceForControl(cid) else {
                 // Unmapped controls are logged so a button we do not know yet
                 // can be identified from its CID.
-                let note = control.isDivertable ? "" : L(" / 転送不可")
-                log(L("未対応のボタン（CID 0x%@%@）", String(cid, radix: 16).uppercased(), note))
+                if isNew {
+                    let note = control.isDivertable ? "" : L(" / 転送不可")
+                    log(L("未対応のボタン（CID 0x%@%@）", String(cid, radix: 16).uppercased(), note))
+                }
+                return
             }
+            if isNew { log(L("%@を検出（CID 0x%@）", source.displayName, String(cid, radix: 16).uppercased())) }
+            // Sent on every scan, not only the first: a device switched off
+            // and on in between answers as before but has forgotten this.
+            if control.isDivertable, shouldDivert(source, on: state) {
+                setDiversion(connection: connection, deviceIndex: packet.deviceIndex, featureIndex: state.buttonFeatureIndex, controlID: cid, enabled: true)
+            }
+            // Publish on every new control: the UI builds its button list from
+            // this snapshot, and the tilts arrive after the precision button,
+            // so publishing only for that one hid them.
+            if isNew { publishDevices() }
             return
         }
 
@@ -543,7 +606,10 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
         let parameters = Array(packet.parameters)
 
         if packet.function == 0 {
-            guard let length = parameters.first, length > 0 else { return }
+            guard let length = parameters.first, length > 0 else {
+                nameProbes.removeValue(forKey: key)
+                return
+            }
             probe.expectedLength = Int(length)
             nameProbes[key] = probe
             sendNameRequest(connection, key: key, function: 1, offset: 0)
@@ -563,17 +629,93 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
         let name = String(decoding: probe.characters.prefix(while: { $0 != 0 }), as: UTF8.self)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard SupportedDevice.match(name: name) != nil else {
-            log(L("「%@」は非対応のため操作しません", name))
+            forget(key)
+            if reportedUnsupported.insert(key).inserted {
+                log(L("「%@」は非対応のため操作しません", name))
+            }
             return
         }
-        identifiedDevices[key] = name
-        log(L("%@を認識（スロット%@）", name, key.deviceIndex))
+        reportedUnsupported.remove(key)
+        lastProbeError.removeValue(forKey: key)
+        if identifiedDevices[key] != name {
+            // First sight of this slot, or a different device paired onto it.
+            forget(key)
+            identifiedDevices[key] = name
+            log(L("%@を認識（スロット%@）", name, key.deviceIndex))
+        }
+        // A battery lookup left pending on this slot would make the request
+        // below a no-op, and the scan would stop here.
+        pendingRootFeatures.removeValue(forKey: key)
         requestRootFeature(.buttons, connection: connection, deviceIndex: key.deviceIndex)
+    }
+
+    private func forget(_ key: EndpointKey) {
+        identifiedDevices.removeValue(forKey: key)
+        guard let state = endpoints.removeValue(forKey: key) else { return }
+        for source in pressedSources(in: state.pressed) { onButton?(source, false) }
+        publishDevices()
+    }
+
+    /// A device that only slept still holds its diversion; one that was
+    /// switched off does not, and the two wake-ups look the same from here.
+    private func deviceLinked(connection: HIDConnection, key: EndpointKey) {
+        let now = Date()
+        if let last = lastLinkNotice[key], now.timeIntervalSince(last) < Self.linkNoticeQuietSeconds { return }
+        lastLinkNotice[key] = now
+        guard endpoints[key] != nil else {
+            requestRootFeature(.deviceName, connection: connection, deviceIndex: key.deviceIndex)
+            return
+        }
+        log(L("HID++スロット%@: 再接続を検出したため、転送設定を送り直します", key.deviceIndex))
+        applyDiversion(only: key)
+    }
+
+    /// No release can arrive from a device that is out of reach, so a button
+    /// held at that moment would otherwise stay held.
+    private func deviceUnlinked(key: EndpointKey) {
+        lastLinkNotice.removeValue(forKey: key)
+        guard var state = endpoints[key], !state.pressed.isEmpty else { return }
+        let held = pressedSources(in: state.pressed)
+        state.pressed = []
+        endpoints[key] = state
+        for source in held { onButton?(source, false) }
+    }
+
+    /// What a receiver answers when asked about a device already known here.
+    /// Recorded, not acted on: telling "unpaired" from "asleep" by this code
+    /// would let an unpaired device be dropped without the Rescan button, but
+    /// dropping on the wrong code would bring back the dead buttons this was
+    /// written to remove.
+    private func noteProbeError(_ code: UInt8, key: EndpointKey) {
+        guard endpoints[key] != nil, lastProbeError[key] != code else { return }
+        lastProbeError[key] = code
+        log(L("HID++スロット%@: レシーバーがエラー 0x%@ を返しました（休止中または未接続）", key.deviceIndex, String(code, radix: 16).uppercased()))
+    }
+
+    /// A known device keeps the feature indices found for it, so a rescan
+    /// only asks for fresh values. One whose button feature moved is not
+    /// treated as known (see the 0x1B04 reply).
+    private func refreshBatteryAndHost(connection: HIDConnection, key: EndpointKey) {
+        guard let state = endpoints[key] else { return }
+        guard state.batteryFeatureIndex != nil else {
+            // The battery lookup leads on to the host-switching one.
+            requestRootFeature(.unifiedBattery, connection: connection, deviceIndex: key.deviceIndex)
+            return
+        }
+        requestBatteryStatus(connection: connection, key: key, state: state)
+        if let featureIndex = state.changeHostFeatureIndex {
+            send(connection, HIDPPPacket.request(deviceIndex: key.deviceIndex, featureIndex: featureIndex, function: 0))
+        } else {
+            requestRootFeature(.changeHost, connection: connection, deviceIndex: key.deviceIndex)
+        }
     }
 
     private func requestRootFeature(_ feature: HIDPPFeature, connection: HIDConnection, deviceIndex: UInt8) {
         let key = EndpointKey(connectionID: connection.id, deviceIndex: deviceIndex)
         guard pendingRootFeatures[key] == nil else { return }
+        // A second lookup would replace the name being read with an empty
+        // one, and the replies to the first would then fit neither.
+        if feature == .deviceName, nameProbes[key] != nil { return }
         let sendOnce: @Sendable () -> Void = { [weak self, weak connection] in
             guard let self, let connection else { return }
             let softwareID = self.allocateSoftwareID()
@@ -587,8 +729,9 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
             key: key,
             what: L("機能検索"),
             // The name probe goes to every receiver slot, most of them empty.
-            // A slot that never answers is the normal case, not a fault.
-            quiet: feature == .deviceName,
+            // A slot that never answers is the normal case, not a fault —
+            // unless a device is known to live there.
+            quiet: feature == .deviceName && endpoints[key] == nil,
             stillWaiting: { [weak self] in self?.pendingRootFeatures[key]?.feature == feature },
             resend: sendOnce,
             giveUp: { [weak self] in self?.pendingRootFeatures.removeValue(forKey: key) }
@@ -679,7 +822,9 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
                 return state.count == nil
             },
             resend: sendOnce,
-            giveUp: { [weak self] in self?.carryOverRetainedControls(key: key) }
+            // Nothing to undo: the controls found by earlier scans are still
+            // in place and keep working.
+            giveUp: {}
         )
     }
 
@@ -711,39 +856,23 @@ final class HIDPPManager: NSObject, @unchecked Sendable {
             quiet: true,
             stillWaiting: { [weak self] in
                 guard let state = self?.endpoints[key], let count = state.count else { return false }
-                return state.controls.count < count
+                return state.enumerated.count < count
             },
             resend: { [weak self] in
                 guard let self else { return }
                 if let state = self.endpoints[key], let count = state.count {
-                    self.log(L("HID++スロット%@: ボタン情報が%@/%@件しか揃わないため再送します", key.deviceIndex, state.controls.count, count))
+                    self.log(L("HID++スロット%@: ボタン情報が%@/%@件しか揃わないため再送します", key.deviceIndex, state.enumerated.count, count))
                 }
                 fire()
             },
-            giveUp: { [weak self] in self?.carryOverRetainedControls(key: key) }
+            giveUp: { [weak self] in
+                guard let self, let state = self.endpoints[key], let count = state.count else { return }
+                self.log(L(
+                    "HID++スロット%@: ボタン情報は%@/%@件で打ち切りました。これまでに検出したボタンはそのまま使います",
+                    key.deviceIndex, state.enumerated.count, count
+                ))
+            }
         )
-    }
-
-    /// Runs when the enumeration gave up short. Anything the previous scan
-    /// found on the same device, and this one did not, is put back and
-    /// diverted again.
-    private func carryOverRetainedControls(key: EndpointKey) {
-        guard var state = endpoints[key],
-              let retained = retainedEndpoints[key],
-              retained.name == identifiedDevices[key] else { return }
-        let missing = retained.controls.filter { control in !state.controls.contains { $0.id == control.id } }
-        guard !missing.isEmpty else { return }
-        let found = state.controls.count
-        state.controls.append(contentsOf: missing)
-        if state.count == nil { state.count = retained.count }
-        endpoints[key] = state
-        let total = state.count ?? state.controls.count
-        log(L(
-            "HID++スロット%@: 列挙が%@/%@件で終わったため、前回検出した%@個のボタンを引き継ぎました",
-            key.deviceIndex, found, total, missing.count
-        ))
-        applyDiversion()
-        publishDevices()
     }
 
     private func requestNextBatteryFeature(after feature: HIDPPFeature, connection: HIDConnection, deviceIndex: UInt8) {
