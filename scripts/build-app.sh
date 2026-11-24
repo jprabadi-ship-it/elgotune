@@ -38,8 +38,12 @@ xcrun actool "$project_dir/Resources/Assets.xcassets" \
 if [[ -n "${ELGOTUNE_SIGN_IDENTITY:-}" ]]; then
   identity="$ELGOTUNE_SIGN_IDENTITY"
 else
-  identity=$(security find-identity -v -p codesigning \
-    | awk -F'"' '/Apple Development|Developer ID Application/ {print $2; exit}')
+  # Developer ID first: releases are signed with it, and the designated
+  # requirement differs per certificate, so a local build signed with Apple
+  # Development and a release make macOS ask for the permissions again.
+  identities=$(security find-identity -v -p codesigning)
+  identity=$(print -r -- "$identities" | awk -F'"' '/Developer ID Application/ {print $2; exit}')
+  [[ -n "$identity" ]] || identity=$(print -r -- "$identities" | awk -F'"' '/Apple Development/ {print $2; exit}')
 fi
 if [[ -z "$identity" ]]; then
   identity="-"
