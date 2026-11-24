@@ -282,9 +282,15 @@ enum ActionPerformer {
             mouseClick(button: .right, down: .rightMouseDown, up: .rightMouseUp)
             return nil
         case .backClick:
+            if ignoresNavigationButtons(NSWorkspace.shared.frontmostApplication?.bundleIdentifier) {
+                return keyPress(keyCode: 33, flags: .maskCommand) // ⌘[
+            }
             mouseClick(button: CGMouseButton(rawValue: 3)!, down: .otherMouseDown, up: .otherMouseUp)
             return nil
         case .forwardClick:
+            if ignoresNavigationButtons(NSWorkspace.shared.frontmostApplication?.bundleIdentifier) {
+                return keyPress(keyCode: 30, flags: .maskCommand) // ⌘]
+            }
             mouseClick(button: CGMouseButton(rawValue: 4)!, down: .otherMouseDown, up: .otherMouseUp)
             return nil
         case .switchDevice:
@@ -299,6 +305,13 @@ enum ActionPerformer {
         case .shortcut(let shortcut):
             return keyPress(keyCode: CGKeyCode(shortcut.keyCode), flags: cgFlags(from: shortcut.modifiers))
         }
+    }
+
+    /// Finder does nothing with mouse buttons 4 and 5, so back and forward
+    /// become its own ⌘[ / ⌘] there. Elsewhere the buttons stay buttons:
+    /// ⌘[ means "outdent" in editors.
+    static func ignoresNavigationButtons(_ bundleIdentifier: String?) -> Bool {
+        bundleIdentifier == "com.apple.finder"
     }
 
     private static func mouseClick(button: CGMouseButton, down: CGEventType, up: CGEventType) {
