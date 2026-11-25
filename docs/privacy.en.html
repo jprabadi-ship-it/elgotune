@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy Policy — Elgotune</title>
-<meta name="description" content="Elgotune collects no personal information and makes no network connections. This policy covers what stays on your Mac and why each permission is needed.">
+<meta name="description" content="Elgotune collects no personal information. Its only network request is an update check at launch, which you can turn off. This policy covers what stays on your Mac and why each permission is needed.">
 <link rel="canonical" href="https://elgotune.gigowat.com/privacy.en.html">
 <link rel="alternate" hreflang="ja" href="https://elgotune.gigowat.com/privacy.ja.html">
 <link rel="alternate" hreflang="en" href="https://elgotune.gigowat.com/privacy.en.html">
@@ -16,7 +16,7 @@
 <div class="wrap doc">
   <a class="back" href="index.en.html">&larr; Elgotune</a>
   <h1>Privacy Policy</h1>
-  <p class="updated">Last updated: 2026-08-02</p>
+  <p class="updated">Last updated: 2026-11-25</p>
 
   <p>Elgotune (“the app”) tunes the behaviour of Logitech trackballs on macOS. This policy describes how the app handles information.</p>
 
@@ -28,7 +28,14 @@
     <li>display advertising or use any data for advertising</li>
     <li>share or sell data to third parties</li>
   </ul>
-  <p>The app performs no network communication at all. Every feature behaves identically on a machine with no internet connection.</p>
+  <h2>Update check</h2>
+  <p>The only network communication the app performs is the update check at launch.</p>
+  <ul>
+    <li>A few seconds after launch it asks GitHub&rsquo;s public API (<code>api.github.com</code>) once for the latest release. Only the app&rsquo;s name is sent &mdash; no settings, usage or device information.</li>
+    <li>If there is a newer version, you are always asked first. The release is downloaded from GitHub only if you agree.</li>
+    <li>As with any internet request, GitHub receives your IP address and handles it under GitHub&rsquo;s own privacy policy.</li>
+    <li>Turn off &ldquo;Check for a new version at launch&rdquo; in Settings and the app makes no connections at all. Without an internet connection, everything except the update check works the same.</li>
+  </ul>
 
   <h2>What is stored on your Mac</h2>
   <p>The following is stored only on your own Mac and never leaves it.</p>
@@ -60,10 +67,13 @@
 
   <h2>Cost and external sites</h2>
   <p>The app is free and contains no payments of any kind. The developer never receives payment details.</p>
-  <p>The product page links to GitHub and to an Amazon wish list. If you follow those links, the linked service handles your information under its own privacy policy. <strong>The app itself sends nothing to those services.</strong></p>
+  <p>The product page links to GitHub and to an Amazon wish list. If you follow those links, the linked service handles your information under its own privacy policy. <strong>Apart from the update check above, the app itself sends nothing to those services.</strong></p>
 
   <h2>Changes to this policy</h2>
   <p>If this policy changes, the “Last updated” date above will change and the revision will be described here.</p>
+  <ul>
+    <li>2026-11-25 (version 1.0.5): added the update check at launch and the &ldquo;Update check&rdquo; section. Earlier versions make no network connections.</li>
+  </ul>
 
   <h2>Contact</h2>
   <p>For questions about this policy or the app, write to <a href="mailto:admin@gigowat.com">admin@gigowat.com</a>.</p>

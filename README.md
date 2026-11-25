@@ -1,11 +1,11 @@
 # Elgotune
 
-MX ERGO と ERGO M575 のボタン・ポインタ・スクロールをまとめて調整する、macOS 向けの常駐アプリです。無料・ネットワーク通信なし。
+MX ERGO と ERGO M575 のボタン・ポインタ・スクロールをまとめて調整する、macOS 向けの常駐アプリです。無料。通信するのは、起動時に最新版を確認するときだけです（設定でオフにできます）。
 
 **[製品ページ](https://elgotune.gigowat.com) ・ [ダウンロード](https://github.com/jprabadi-ship-it/elgotune/releases/latest) ・ [プライバシーポリシー](https://elgotune.gigowat.com/privacy.ja.html)**
 
 > Tunes the buttons, pointer and scrolling of the Logitech MX ERGO and ERGO M575 on macOS.
-> Free, and makes no network connections. The app is in English outside Japanese locales.
+> Free. Its only network request is a check for a newer version at launch, which you can turn off. The app is in English outside Japanese locales.
 > See the [product page](https://elgotune.gigowat.com/index.en.html).
 
 ## できること
