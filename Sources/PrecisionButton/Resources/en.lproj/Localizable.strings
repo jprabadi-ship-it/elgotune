@@ -239,3 +239,26 @@
 "%@が接続されていません。接続されるまで、このボタンは通常どおり動作します。" = "%@ is not connected. Until it is, this button keeps its normal behavior.";
 "%@を検出（%@）" = "%@ detected (%@)";
 "%@: 対象外のデバイス（0x%@）なので通常どおり動作" = "%@: from another device (0x%@), left unchanged";
+
+/* Updates */
+"起動時に新しいバージョンを確認" = "Check for a new version at launch";
+"GitHub の公開ページに最新版の情報を1回問い合わせます。送るのはアプリ名だけです。新しい版があれば、インストールするか確認します。" = "Asks GitHub once for the latest release. Only the app's name is sent. If there is a newer version, you are asked before anything is installed.";
+"Elgotune %@ が公開されています" = "Elgotune %@ is available";
+"いまお使いの版は %@ です。ダウンロードしてインストールしますか？\n準備ができたら Elgotune を一度終了し、新しい版に置き換えて起動し直します。" = "You are using %@. Download and install it?\nOnce it is ready, Elgotune quits, replaces itself with the new version and opens again.";
+"ダウンロードしてインストール" = "Download and Install";
+"この版はスキップ" = "Skip This Version";
+"新しいバージョン %@ があります" = "Version %@ is available";
+"新しいバージョン %@ はスキップ済みです" = "Version %@ was skipped";
+"バージョン %@ をスキップしました" = "Skipped version %@";
+"バージョン %@ をダウンロード中…" = "Downloading version %@…";
+"バージョン %@ の署名を確認しました。置き換えのため終了します" = "Version %@ passed the signature check. Quitting to replace the app";
+"更新を確認できませんでした: %@" = "Could not check for updates: %@";
+"更新できませんでした" = "Could Not Update";
+"更新できませんでした: %@" = "Could not update: %@";
+"%@\nいまの版をそのまま使えます。" = "%@\nThe current version keeps working.";
+"配布ファイル（.dmg）が見つかりません" = "The release has no disk image (.dmg)";
+"ダウンロードしたファイルにアプリが入っていません" = "The downloaded image contains no app";
+"署名の確認に失敗しました: %@" = "Signature check failed: %@";
+"ダウンロードしたアプリの版が一致しません（%@）" = "The downloaded app has an unexpected version (%@)";
+"%@ に書き込めません" = "Cannot write to %@";
+"%@ が失敗しました: %@" = "%@ failed: %@";

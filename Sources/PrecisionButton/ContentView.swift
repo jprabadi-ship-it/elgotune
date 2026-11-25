@@ -274,6 +274,13 @@ struct ContentView: View {
 
             Divider()
 
+            Toggle(L("起動時に新しいバージョンを確認"), isOn: $model.checkForUpdatesAtLaunch)
+            Text(L("GitHub の公開ページに最新版の情報を1回問い合わせます。送るのはアプリ名だけです。新しい版があれば、インストールするか確認します。"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Divider()
+
             Text(model.versionText)
                 .font(.caption)
                 .foregroundStyle(.secondary)

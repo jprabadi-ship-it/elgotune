@@ -59,6 +59,12 @@ final class AppModel: ObservableObject {
     @Published private(set) var eventPostingGranted = CGPreflightPostEventAccess()
     @Published private(set) var inputMonitoringGranted = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
     @Published private(set) var isFrontmostAppExcluded = false
+    /// The one network request the app makes; off means none at all.
+    @Published var checkForUpdatesAtLaunch: Bool = UserDefaults.standard.object(forKey: "checkForUpdatesAtLaunch") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(checkForUpdatesAtLaunch, forKey: "checkForUpdatesAtLaunch") }
+    }
+    private lazy var updater = Updater { [weak self] line in self?.appendLog(line) }
+
     @Published var launchAtLogin: Bool = LoginItem.isEnabled {
         didSet {
             guard launchAtLogin != LoginItem.isEnabled else { return }
@@ -332,6 +338,12 @@ final class AppModel: ObservableObject {
         refreshScopedDevices()
         syncDiversionState()
         appendLog(eventPostingGranted ? L("キーボード・マウス操作の送信権限を確認") : L("操作送信権限がありません"))
+        if checkForUpdatesAtLaunch {
+            // Let the devices settle first; the prompt is not urgent.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+                MainActor.assumeIsolated { self?.updater.checkAtLaunch() }
+            }
+        }
 
         // Leaving the pointer rescaled, or buttons diverted to an app that is
         // gone, would strand the user with a device they cannot fix.
