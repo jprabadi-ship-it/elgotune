@@ -63,7 +63,6 @@ final class AppModel: ObservableObject {
     @Published var checkForUpdatesAtLaunch: Bool = UserDefaults.standard.object(forKey: "checkForUpdatesAtLaunch") as? Bool ?? true {
         didSet { UserDefaults.standard.set(checkForUpdatesAtLaunch, forKey: "checkForUpdatesAtLaunch") }
     }
-    private lazy var updater = Updater { [weak self] line in self?.appendLog(line) }
 
     @Published var launchAtLogin: Bool = LoginItem.isEnabled {
         didSet {
@@ -340,9 +339,8 @@ final class AppModel: ObservableObject {
         appendLog(eventPostingGranted ? L("キーボード・マウス操作の送信権限を確認") : L("操作送信権限がありません"))
         if checkForUpdatesAtLaunch {
             // Let the devices settle first; the prompt is not urgent.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
-                MainActor.assumeIsolated { self?.updater.checkAtLaunch() }
-            }
+            // The shared GigowatUpdater reads gigowat.com/updates/elgotune.json.
+            GigowatUpdater.shared.checkOnLaunch(slug: "elgotune", delay: 5)
         }
 
         // Leaving the pointer rescaled, or buttons diverted to an app that is
